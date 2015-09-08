@@ -6,6 +6,8 @@ import qualified Data.Map as Map
 import Data.Maybe
 import Data.List
 
+import Debug.Trace
+
 -- Evaluation --
 
 eval :: QVM -> IO (Maybe QVM)
@@ -142,12 +144,12 @@ qcall = qfunc "call" [Quote Any Any] func
 qmatch = qfunc "match" [Quote Empty (Quote Any Any)] func
   where func ((QQuote _ quotes) : s, t, l) = callQuote (tryQuotes quotes s) (s, t, l)
         tryQuotes [] _ = QQuote [] []
-        tryQuotes ((QQuote p q) : qs) s = case patternMatch p s of
+        tryQuotes ((QQuote p q) : qs) s = case patternMatch (reverse p) s of
           Just bindings -> (QQuote p q)
           Nothing -> tryQuotes qs s
 
-qdef = qfunc "def" [Quote Any Any, Atom] func
-  where func ((QAtom x) : y : s, t, l) = return $ Just (s, t, Map.insert x y l)
+qdef = qfunc "def" [Quote Any Any, Sym] func
+  where func ((QSym x) : y : s, t, l) = return $ Just (s, t, Map.insert x y l)
   
 qeval = qfunc "eval" [Str] func
   where func ((QStr x) : s, t, l) = do {

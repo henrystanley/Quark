@@ -1,0 +1,28 @@
+
+[ x | ] :drop def
+
+[ drop ] :comment def
+
+
+"## Stack Manipulation Operators ##" comment
+
+[ x | x x ] :dup def
+
+[ y x f | y f call x ] :dip def
+
+[ [[ :nil | ] [ drop clear ]] match ] :clear def
+
+
+"## Numeric Operators ##" comment
+
+[ -1 * + ] :- def
+
+
+"## Control Flow ##" comment
+
+[ [[ :true x y | x call ] [ z x y | y call ]] match ] :if def
+
+[ [[ 0 f | ] [ n f | f call n 1 - f times-do ]] match ] :times-do def 
+
+[ [[ [] x f | x ] [ xs x f | xs >> x f call f fold ]] match ] :fold def
+
