@@ -6,7 +6,6 @@ import qualified Data.Map as Map
 import Data.Maybe
 import Data.List
 
-import Debug.Trace
 
 -- Evaluation --
 
@@ -35,6 +34,8 @@ coreFunc "/" = Just qdiv
 coreFunc "<" = Just qlessthan
 coreFunc "<<" = Just qpush
 coreFunc ">>" = Just qpop
+coreFunc "<@" = Just qargpush
+coreFunc "@>" = Just qargpop
 coreFunc "." = Just qprintall
 coreFunc "print" = Just qprint
 coreFunc "show" = Just qshow
@@ -42,6 +43,7 @@ coreFunc "chars" = Just qchars
 coreFunc "weld" = Just qweld
 coreFunc "type" = Just qtypelang
 coreFunc "load" = Just qload
+coreFunc "write" = Just qwrite
 coreFunc "call" = Just qcall
 coreFunc "match" = Just qmatch
 coreFunc "def" = Just qdef
@@ -114,6 +116,12 @@ qpush = qfunc "<<" [Quote Any Any, Any] func
 
 qpop = qfunc ">>" [Quote Any NotEmpty] func
   where func ((QQuote a xs) : s, t, l) = return $ Just (( head . reverse $ xs) : (QQuote a (reverse . tail . reverse $ xs)) : s, t, l)
+  
+qargpush = qfunc "<@" [Quote Any Any, Any] func
+  where func (x : (QQuote a xs) : s, t, l) = return $ Just ((QQuote (reverse (x : (reverse a))) xs) : s, t, l)
+
+qargpop = qfunc "@>" [Quote NotEmpty Any] func
+  where func ((QQuote a xs) : s, t, l) = return $ Just (( head . reverse $ a) : (QQuote (reverse . tail . reverse $ a) xs) : s, t, l)
 
 qprintall = qfunc "." [] func
   where func (s, t, l) = (putStrLn . intercalate " " . map serializeQ . reverse) s >> return (Just (s, t, l))
@@ -137,6 +145,11 @@ qload = qfunc "load" [Str] func
   where func ((QStr filename) : s, t, l) = do
           file <- readFile filename
           return $ Just (QStr file : s, t, l)
+          
+qwrite = qfunc "write" [Str, Str] func
+  where func ((QStr filename) : (QStr toWrite) : s, t, l) = do
+          writeFile filename toWrite
+          return $ Just (s, t, l)
 
 qcall = qfunc "call" [Quote Any Any] func
   where func (x : s, t, l) = (callQuote x (s, t, l))
@@ -168,7 +181,7 @@ qraise = qfunc "raise" [Str] func
 
 runQuark :: Bool -> IO QVM -> String -> IO (Maybe QVM)
 runQuark quiet iovm s = case qParse s of
-  Left _ -> if not quiet then raiseError "Parse Error (unfortunately this interpreter isn't clever enough to tell you where...)" else return Nothing
+  Left perror -> if not quiet then raiseError $ "Parse Error: " ++ (show perror) else return Nothing
   Right tokens -> do
     vm <- iovm
     let vm' = (return . Just) (fillQVM vm tokens) in recEval vm'
