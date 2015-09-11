@@ -5,7 +5,7 @@ import QuarkParser
 import qualified Data.Map.Strict as Map
 import Data.Maybe
 import Data.List
-
+import System.Process
 
 
 -- Evaluation --
@@ -45,6 +45,7 @@ coreFunc "weld" = Just qweld
 coreFunc "type" = Just qtypelang
 coreFunc "load" = Just qload
 coreFunc "write" = Just qwrite
+coreFunc "cmd" = Just qcmd
 coreFunc "call" = Just qcall
 coreFunc "match" = Just qmatch
 coreFunc "def" = Just qdef
@@ -151,6 +152,11 @@ qwrite = qfunc "write" [Str, Str] func
   where func ((QStr filename) : (QStr toWrite) : s, t, l) = do
           writeFile filename toWrite
           return $ Just (s, t, l)
+          
+qcmd = qfunc "cmd" [Str] func
+  where func ((QStr cmd) : s, t, l) = do
+          result <- System.Process.readCreateProcess (System.Process.shell cmd) ""
+          return $ Just (QStr result : s, t, l)
 
 qcall = qfunc "call" [Quote Any Any] func
   where func (x : s, t, l) = (callQuote x (s, t, l))
