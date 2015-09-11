@@ -2,9 +2,10 @@ module QuarkInterpreter (runQuark, emptyQVM) where
 
 import QuarkType
 import QuarkParser
-import qualified Data.Map as Map
+import qualified Data.Map.Strict as Map
 import Data.Maybe
 import Data.List
+
 
 
 -- Evaluation --
@@ -65,9 +66,9 @@ patternMatch :: [QItem] -> QStack -> Maybe QLib
 patternMatch pattern stack = qmatch Map.empty pattern stack
   where qmatch l [] _ = Just l
         qmatch l _ [] = Nothing
-        qmatch l (QAtom x : xs) (y : ys) = qmatch l' xs' ys
-          where l' = Map.insert x y l
-                xs' = libSub xs $ Map.singleton x y
+        qmatch l (QAtom x : xs) (y : ys) = if Map.member x l
+          then if (l Map.! x) == y then qmatch l xs ys else Nothing
+          else qmatch (Map.insert x y l) xs ys
         qmatch l (x : xs) (y : ys) = if x == y then qmatch l xs ys else Nothing
 
 libSub :: [QItem] -> QLib -> [QItem]

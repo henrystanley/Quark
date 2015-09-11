@@ -28,9 +28,9 @@ getLib :: QVM -> QLib
 getLib (_, _, l) = l
 
 serializeQ :: QItem -> String
-serializeQ (QNum x) = show x 
-serializeQ (QAtom x) = x 
-serializeQ (QSym x) = ':' : x 
+serializeQ (QNum x) = show x
+serializeQ (QAtom x) = x
+serializeQ (QSym x) = ':' : x
 serializeQ (QStr x) = "\"" ++ x ++ "\""
 serializeQ (QQuote args vals) = "[ " ++ s_args ++ s_vals ++ " ]"
   where s_args = if args == [] then "" else intercalate " " (map serializeQ args) ++ " | "
@@ -58,10 +58,10 @@ qtype (QSym _) = Sym
 qtype (QStr _) = Str
 qtype (QQuote args items) = Quote (inner_type args) (inner_type items)
   where inner_type [] = Empty
-        inner_type xs = foldl consistent_type (qtype (head xs)) (map qtype xs)
+        inner_type xs = foldl' consistent_type (qtype (head xs)) (map qtype xs)
         consistent_type (Quote x1 y1) (Quote x2 y2) = Quote (consistent_type x1 x2) (consistent_type y2 y2)
         consistent_type x y = if x == y then x else Any
-        
+
 qtypeLiteral :: QType -> QItem
 qtypeLiteral (Quote a b) = QQuote [] [(QSym "Quote"), qtypeLiteral a, qtypeLiteral b ]
 qtypeLiteral x = QSym . show $ x
@@ -75,5 +75,5 @@ qtypeCompare t1 t2 = t1 == t2
 
 qtypeCheck :: QTypeSig -> QStack -> Bool
 qtypeCheck sig stack = if length stack < (length sig) then False
-  else and . map (uncurry qtypeCompare) . zip sig $ stack_sig 
+  else foldl' (\z (x, y) -> z && (qtypeCompare x y)) True $ zip sig stack_sig
     where stack_sig = map qtype . reverse . take (length sig) $ stack
