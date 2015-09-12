@@ -75,6 +75,7 @@ patternMatch pattern stack = qmatch Map.empty pattern stack
 libSub :: [QItem] -> QLib -> [QItem]
 libSub [] _ = []
 libSub (QAtom x : xs) l = if Map.member x l then (l Map.! x) : (libSub xs l) else (QAtom x) : (libSub xs l)
+libSub (QQuote args items : xs) l = QQuote (libSub args l) (libSub items l) : (libSub xs l)
 libSub (x : xs) l = x : (libSub xs l)
 
 fillQVM :: QVM -> QStack -> QVM
