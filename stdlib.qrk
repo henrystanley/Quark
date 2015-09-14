@@ -12,7 +12,7 @@
 
 [ y x f | y f call x ] :dip def
 
-[ [[ :nil | ] [ drop clear ]] match ] :clear def
+[ [[ x | clear ]] match ] :clear def
 
 [ [[ x 0 | ] [ x n | x x n 1 - dupN ]] match ] :dupN def
 
