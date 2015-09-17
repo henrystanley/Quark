@@ -50,7 +50,7 @@ coreFunc "call" = Just qcall
 coreFunc "match" = Just qmatch
 coreFunc "def" = Just qdef
 coreFunc "eval" = Just qeval
-coreFunc "raise" = Just qraise
+coreFunc "exit" = Just qexit
 coreFunc _ = Nothing
 
 
@@ -180,8 +180,8 @@ qeval = qfunc "eval" [Str] func
       Just (s', t', l') -> return $ Just ((QSym "ok") : s', t', l');
   }
 
-qraise = qfunc "raise" [Str] func
-  where func ((QStr x) : s, t, l) = raiseError x
+qexit = qfunc "exit" [] func
+  where func _ = return Nothing
 
 -- Interpreter --
 
