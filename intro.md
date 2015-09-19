@@ -373,6 +373,21 @@ Because of `type` it's possible to build a typechecking system in Quark.
 It is also possible to define functions which act differently on different types.
 
 
+Something's missing...
+======================
+
+I can hear your puzzlement from here.
+We just went through all 22 functions, and there was no import capabilities.
+The truth is, in Quark import is just a composition of two functions we've already met: `load` and `eval`.
+Your Quark distribution should have come with the standard library, why don't we load it up?
+Hopefully you put it somewhere accessible.
+
+    :> '~/Quark/stdlib.qrk' load eval
+
+Now presuming you have :ok on your stack, you can play with all the goodies in there.
+Check out the api documentation to figure out how all this stuff works.
+
+
 Philosophy
 ==========
 

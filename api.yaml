@@ -1,0 +1,22 @@
+
+Core:
+
+  - '.' :
+    description: Prints all items on the stack
+    typesig: ->
+    example:
+      in: 7 :a "cow" .
+      stack: 7.0 :a cow
+      effect: printed "7.0 :a cow"
+
+  - 'print' :
+    description: Pops first item and prints it
+    typesig: Str ->
+    example:
+      in: 4.0 "cow" print
+      stack: 4.0
+      effect: printed "cow"
+
+  - '+' :
+    description: Adds two numbers
+    typesig: Num Num -> Num
