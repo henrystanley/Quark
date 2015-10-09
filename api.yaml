@@ -20,3 +20,144 @@ Core:
   - '+' :
     description: Adds two numbers
     typesig: Num Num -> Num
+    example:
+      in: 4 5 +
+      stack: 9.0
+
+  - '*' :
+    description: Multiplies two numbers
+    typesig: Num Num -> Num
+    example:
+      in: 5 6 *
+      stack: 30.0
+
+  - '/' :
+    description: Divides two numbers
+    typesig: Num Num -> Num
+    example:
+      in: 30 3 /
+      stack: 10.0
+
+  - '<' :
+    description: Compares two numbers
+    typesig: Num Num -> Sym
+    example:
+      in: 30 7 <
+      stack: :true
+
+  - '>>' :
+    description: Pops an item from a quote body
+    typesig: [ Any | NotEmpty ] -> [Any | Any ] Any
+    example:
+      in: [ 1 2 3 ] >>
+      stack: [ 1 2 ] 3
+
+  - '<<' :
+    description: Pushes an item into a quote body
+    typesig: [ Any | Any ] Any -> [ Any | Any ]
+    example:
+      in: [ :denmark :sweden ] :norway <<
+      stack: [ :denmark :sweden :norway ]
+
+  - "@>" :
+    description: Pops and item from a quote pattern
+    typesig: [ NotEmpty | Any ] -> [ Any | Any ] Any
+    example:
+      in: [ 4 :a | "test" ] @>
+      stack: [ 4 | "test" ] :a
+
+  - "<@" :
+    description: Pushes an item into a quote pattern
+    typesig: [ Any | Any ] Any -> [ Any | Any ]
+    example:
+      in: [ :one :two | 64 ] :three <@
+      stack: [ :one :two :three | 64 ]
+
+  - "show" :
+    description: Serializes any quark item into a string
+    typesig: Any -> Str
+    example:
+      in: [ :a | 5 'cow' ] show
+      stack: "[ :a | 5.0 'cow' ]"
+
+  - "eval" :
+    description: Evaluates a string containing quark code
+    typesig: Str -> Sym
+    example:
+      in: "'cow' print 4 5 +" eval
+      stack: 9.0 :ok
+      effect: printed "cow"
+
+  - "chars" :
+    description: Converts a string into a quote containing each of the string's characters
+    typesig: Str -> [ Empty | Str ]
+    example:
+      in: "cow" chars
+      stack: [ "c" "o" "w" ]
+
+  - "weld" :
+    description: Concatenates two strings
+    typesig: Str Str -> Str
+    example:
+      in: "one fish, " "two fish" weld
+      stack: "one fish, two fish"
+
+  - "def" :
+    description: Defines a function
+    typesig: [ Any | Any ] Sym ->
+    example:
+      in: [ x y | x y + ] :add def 4 5 add
+      stack: 9.0
+      effect: Defined the atom "add" to call the quote "[ x y | x y + ]"
+
+  - "type" :
+    description: Returns the type of an item as a symbol, or in the case of quotes, as a quote
+    typesig: Any -> Sym || [ Empty | Sym ]
+    example:
+      in: 4 type [ 1 2 3 | :a :b :c ] type
+      stack: :Num [ :Quote :Num :Sym ]
+
+  - "load" :
+    description: Reads the contents of a file into a string
+    typesig: Str -> Str
+    example:
+      in: "test.txt" load
+      stack: "This is a test file"
+      effect: The file "test.txt" was read and put into a quark string. Reading a non-existant file will crash the program.
+
+  - "write" :
+    description: Writes a string into a file
+    typesig: Str Str ->
+    example:
+      in: "Testing, 1 2 3" "test.txt" write
+      stack:
+      effect: Wrote "Testing, 1 2 3" to file "test.txt"
+
+  - "cmd" :
+    description: Runs a command, and returns the output as a string
+    typesig: Str -> Str
+    example:
+      in: "cat ~/numbers.txt" cmd
+      stack: "1 2 3"
+      effect: Ran command "cat". Will crash the program if the command fails.
+
+  - "call" :
+    description: Calls a quote. If the quote pattern doesn't match the top of the stack, "call" will return the symbol ":nil"
+    typesig: [ Any | Any ] -> || Sym
+    example:
+      in: 1 2 [ x y | y x ] call
+      stack: 2.0 1.0
+
+  - "match" :
+    description: Takes a list of quotes, and calls the first one to pattern match the stack
+    typesig: [ Empty | [ Any | Any] ] ->
+    example:
+      in: :four [ [ :five | 5 ] [ :four | 4 ] ] match
+      stack: 4.0
+
+  - "exit" :
+    description: Exits the program
+    typesig: ->
+    example:
+      in: exit
+      effect: The program exits
