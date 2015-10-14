@@ -21,7 +21,7 @@ It does however, try to be as simple, flexible, and obvious as possible.
 
 
 Making REPLs in the pond
-=========================
+------------------------
 
 Assuming you managed to install Quark onto your IBM PC, PDP-11, or MIT Lisp Machine, let's fire up the repl.
 Quark has two modes of operation, interpreter and repl.
@@ -92,7 +92,7 @@ However, since we haven't called this quote, it will just sit at top of the stac
 
 
 Pattern Matching, because if statements are for chumps...
-=========================================================
+---------------------------------------------------------
 
 Quotes have one more property which is responsible for a lot of Quark's flavor.
 Anyone who has used a functional programming language like Erlang, Haskell, or OCaml is probably familiar with pattern matching.
@@ -142,7 +142,7 @@ will put :nil on your stack because it only matches literal quote values with :c
 
 
 I'm a bit def, you'll have to speak up
-========================================
+--------------------------------------
 
 If you've been following these examples your data stack is probably filled with rubbish, let's do something about that...
 
@@ -188,7 +188,7 @@ Pretty nifty...
 
 
 "Luke, use the eval"
-====================
+--------------------
 
 Modern programming languages have a habit of implementing a function called `eval`.
 They then demand you never use it, unless absolutely necessary.
@@ -246,7 +246,7 @@ By this I mean that you can define functions in `eval`, like this:
 However `show` will never include defined functions, it merely turns the top item of the stack into a string.
 
 Utilities
-=========
+---------
 
 In this section we'll take a quick look at many of the lesser functions in Quark.
 To start us out, let's check out the stuff you can do with quotes:
@@ -295,7 +295,7 @@ This concludes our function blitz, now on to interacting with the outside world.
 
 
 IO, IO, it's off to the filesystem I go...
-==========================================
+------------------------------------------
 
 We've already met `print`, but as with most programming languages, Quark has more to offer in terms of input and output.
 As a warning, I'm not entirely satisfied with the current lineup of io functions.
@@ -333,7 +333,7 @@ In repl mode (because it gracefully handles errors) you'll have to enter `*q` (n
 
 
 Hindley–Milner!?
-===============
+----------------
 
 Despite being a proponent of strongly typed languages myself, Quark is as dynamic as they come.
 Quark does have a type system though, as fluid and dangerous as it may be.
@@ -374,7 +374,7 @@ It is also possible to define functions which act differently on different types
 
 
 Something's missing...
-======================
+----------------------
 
 I can hear your puzzlement from here.
 We just went through all 22 functions, and there was no import capabilities.
@@ -389,7 +389,7 @@ Check out the api documentation to figure out how all this stuff works.
 
 
 Philosophy
-==========
+----------
 
 Here are some principles to follow when writing Quark code:
 
@@ -403,7 +403,7 @@ Here are some principles to follow when writing Quark code:
 
 
 Syntax
-======
+------
 
 Here's a handy reference to what characters are allowed in Quark values:
 
@@ -421,11 +421,41 @@ Quotes start with '[', may have a pattern ending with '|', and must conclude wit
 Whitespace: tabs, spaces, and newlines, will all work.
 
 
+Flaws
+-----
+
+By the end of this tutorial you've probably noticed several things you don't like about Quark.
+Maybe a bump in the design here, or a discolored corner over there...
+Well, I'm not one to hide the flaws in my creations...
+You hold the wounds open, and I'll get the salt.
+
+I am writing this small section after trying to bulk out the standard library with some new utility functions.
+Using one's language is always the bane of any language designer.
+It makes you furrow your brow and go: "Actually this is pretty rubbish..."
+I don't actually think Quark is rubbish, mind you, but it has made me notice some rough edges.
+
+The biggest issue I'm sure you'll face programming in Quark, is all the leaky abstractions.
+Quark is a very mechanical language, in regards to it's evaluation.
+It also has a large dependence on state, because of the stack.
+Quark almost feels at times, like a big soft turing tarpit.
+It has enough usability that we're not talking about Unlambda here, but it can still be a pain.
+
+Another issue I've noticed is that Quark suffers from the same syntactic complexity found in Lisp.
+Lisp proponents are eager to discount how painful it is to use a language with super regular syntax, I'm not so proud.
+Keeping tabs on where you are in a match statement can be brutal, and is really only resolved by counting brackets.
+
+Quark is also (at the moment) quite slow.
+This is less of a flaw in the language, a more of a problem with the current implementation.
+At this point in time the interpreter runs a script straight from the parsed abstract syntax tree.
+Perhaps in the future a fast VM, or even a proper compiler, might solve this.
+For now though, expect to wait two or three minutes when dealing with quotes containing thousands of items.
+
+
 The End
-=======
+-------
 
 Quark gets it's name from an analogy.
-In modern particle physics there are believed to be six elementary particle known as quarks.
+In modern particle physics there are believed to be six elementary particles known as quarks.
 These quarks (along with the leptons) compose together to create what we consider matter.
 In Quark the key idea is that one can encode a vast amount of programming behavior in only 22 functions.
 Through compositions of these 22 functions, all the features of the language can be implemented.

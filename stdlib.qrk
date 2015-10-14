@@ -12,14 +12,24 @@
 
 [ y x f | y f call x ] :dip def
 
-[ [[ x | clear ]] match ] :clear def
+[ x y | x y x ] :dipdup def
 
-[ [[ x 0 | ] [ x n | x x n 1 - dupN ]] match ] :dupN def
+[ x y z | z x y ] :rot def
+
+[ [[ x | clear ]] match ] :clear def
 
 
 "## Numeric Operators ##" comment
 
 [ -1 * + ] :- def
+
+[ swap < ] :> def
+
+[ 1 + ] :++ def
+
+[ -1 + ] :-- def
+
+[ 1 swap [ [ dup ] dip * ] times-do swap drop ] :^ def
 
 
 "## String Operators ##" comment
@@ -29,14 +39,16 @@
 
 "## Boolean Operators ##" comment
 
-[ x x | :true ] := def
+[ [[ x x | :true ] [ x y | :nil ]] match ] := def
 
-[ :true :true | :true ] :and def
+[ [[ :true :true | :true ] [ x y | :false ]] match ] :and def
 
 [ [[ :true x | :true ] [ x :true | :true ]] match ] :or def
 
 [ [[ :true | :nil ] [ x | :true ]] match ] :not def
 
+[ = not ] :!= def
+ 
 
 "## Control Flow ##" comment
 
@@ -47,3 +59,14 @@
 [ [[ [] x f | x ] [ xs x f | xs >> x f call f fold ]] match ] :fold def
 
 [ [[ [] f | [] ] [ xs f | xs >> [ f map ] dip f call << ]] match ] :map def
+
+
+"## Quote Functions ##" comment
+
+[ [] [ swap << ] fold ] :reverse def
+
+[ reverse [ swap << ] fold reverse ] :concat def
+
+[ [] rot [ dup [ << ] dip ++ ] times-do drop ] :range def
+
+[ 1 swap range ] :iota def
