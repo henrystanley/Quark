@@ -62,7 +62,7 @@ libFunc var lib = Map.lookup var lib >>= (\f -> Just (\vm -> callQuote f vm))
 callQuote :: QItem -> QVM -> IO (Maybe QVM)
 callQuote (QQuote args values) (stack, tokens, lib) = case patternMatch (reverse args) stack of
   Just bindings -> return . Just $ (drop (length args) stack, (libSub values bindings) ++ tokens, lib)
-  Nothing -> return $ Just (QSym "nil" : stack, tokens, lib)
+  Nothing -> return $ Just (QSym "nil" : (drop (length args) stack), tokens, lib)
 callQuote x (s, t, l) = raiseError "Tried to call a value that wasn't a quote"
 
 patternMatch :: [QItem] -> QStack -> Maybe QLib

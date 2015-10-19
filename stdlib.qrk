@@ -4,6 +4,13 @@
 [ drop ] :comment def
 
 
+"## Handy Macros ##" comment
+
+[ q n | [ q match ] n def ] :mdef def
+
+[ call ] :; def 
+
+
 "## Stack Manipulation Operators ##" comment
 
 [ x | x x ] :dup def
@@ -16,7 +23,7 @@
 
 [ x y z | z x y ] :rot def
 
-[ [[ x | clear ]] match ] :clear def
+[[ x | clear ]] :clear mdef
 
 
 "## Numeric Operators ##" comment
@@ -39,26 +46,26 @@
 
 "## Boolean Operators ##" comment
 
-[ [[ x x | :true ] [ x y | :nil ]] match ] := def
+[ x x | :true ] := def
 
-[ [[ :true :true | :true ] [ x y | :false ]] match ] :and def
+[ :true :true | :true ] :and def
 
-[ [[ :true x | :true ] [ x :true | :true ]] match ] :or def
+[[ :true x | :true ] [ x :true | :true ]] :or mdef
 
-[ [[ :true | :nil ] [ x | :true ]] match ] :not def
+[[ :true | :nil ] [ x | :true ]] :not mdef
 
 [ = not ] :!= def
  
 
 "## Control Flow ##" comment
 
-[ [[ :true x y | x call ] [ z x y | y call ]] match ] :if def
+[[ :true x y | x call ] [ z x y | y call ]] :if mdef
 
-[ [[ 0 f | ] [ n f | f call n 1 - f times-do ]] match ] :times-do def 
+[[ 0 f | ] [ n f | f call n 1 - f times-do ]] :times-do mdef 
 
-[ [[ [] x f | x ] [ xs x f | xs >> x f call f fold ]] match ] :fold def
+[[ [] x f | x ] [ xs x f | xs >> x f call f fold ]] :fold mdef
 
-[ [[ [] f | [] ] [ xs f | xs >> [ f map ] dip f call << ]] match ] :map def
+[[ [] f | [] ] [ xs f | xs >> [ f map ] dip f call << ]] :map mdef
 
 
 "## Quote Functions ##" comment
