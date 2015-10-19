@@ -18,7 +18,9 @@ eval vm = case useTop vm of
 useTop :: QVM -> Maybe (QVM -> IO (Maybe QVM))
 useTop (stack, (QAtom a) : xs, lib) = case coreFunc a of
   Just f -> Just f
-  Nothing -> libFunc a lib
+  Nothing -> let fromLib = libFunc a lib in case fromLib of
+    Just f -> Just f
+    Nothing -> Just (\_ -> raiseError ("No such function: " ++ a))
 useTop vm = Nothing
 
 dropTopToken :: QVM -> QVM

@@ -20,12 +20,12 @@ qnum = do
   return $ QNum (read (neg ++ num) :: Double)
 
 qatom = do
-  value <- many1 $ oneOf (['a'..'z'] ++ ['A'..'Z'] ++ "+-=_*&^%$#@!?/><,.;{}~`")
+  value <- many1 $ noneOf (['0'..'9'] ++ "'\":\\[]|\n\t ")
   return $ QAtom value
 
 qsym = do
   char ':'
-  value <- many1 $ oneOf (['a'..'z'] ++ ['A'..'Z'] ++ "+-=_*&^%$#@!?/><,.;{}~`")
+  value <- many1 $ noneOf (['0'..'9'] ++ "'\":\\[]|\n\t ")
   return $ QSym value
 
 qstrDouble = do

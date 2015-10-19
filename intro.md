@@ -55,39 +55,38 @@ Now lets add some strings:
 Strings can be written with either single or double quotes.
 I should point out here as well, that quark doesn't really care about line breaks.
 Strings can span multiple lines if necessary, however the repl doesn't really allow for this.
-Here's a new, slightly more exotic, type:
+Here's the last, slightly more exotic, type:
 
     :> :thing :Cows :the_color_blue
 
 These are symbols, and if you're at all familiar with Ruby you should recognize them.
 Symbols are literals used for names, keys, and other stuff.
-Moving on, let's get acquainted with variables.
 
-    :> x Y potato
 
-Variables are a bit more complicated than the previous types.
-Their interpretation depends on the current bindings.
-If they are unbound when pushed to the stack they remain as literals.
-If however, they are bound to a quote (which we'll explore next) they will call this quote.
+Let's Get Functional!
+---------------------
+
+Functions are pretty simple too.
+As I mentioned before, there are 22 built in functions.
+Obviously though, you can make your own.
 
 Now might be good time (if not a little late) to explain Quark's evaluation model.
-The basic haskell Quark implementation represents the state of the environment with a tuple of three things:
-Stack, Tokens, and Lib.
-Stack is obviously the data stack we've been pushing to this whole time.
-Tokens is a list of unevaluated Quark items.
-Lib is a simple map of Quark variables to Quark quotes.
-Each step of the evaluation the interpreter pops the first item off the Tokens list.
-If this is a data item, the interpreter pushes it to the stack.
-Otherwise if it is a bound variable it calls the corresponding quote.
+The basic Haskell Quark implementation represents the state of the environment with a tuple of three things.
+These three items are: `Stack`, `Tokens`, and `Lib`.
+`Stack` is obviously the data stack we've been pushing to this whole time.
+`Tokens` is a list of unevaluated Quark items.
+`Lib` is a simple map of Quark atoms to Quark quotes.
+Each step of the evaluation the interpreter pops the first item off the `Tokens` list.
+If this item is a function, the interpreter looks it up in `Lib`, otherwise it pushes the item to `Stack`.
 
-Why don't we take a quick peek at these quotes?
+I mentioned quotes above in the definition for `Lib`, but what are quotes?
+Quotes are just lists of Quark items, observe:
 
     :> [ 4 'fifty' :orange ]
 
 This is a simple quote of three items.
-When called it will append these items in order to the Tokens list.
-By in order, I should specify, I mean it will concat them like this in pseudo-haskell: [ 4, "fifty", :orange] ++ tokens
-Next of course, the interpreter will pop each of these off the tokens list and push them to the stack.
+When called it will push `4` then `'fifty'` then `:orange` to the stack.
+(Actually technically, it will push them to the `Tokens` list, which will then take each item and push it to the stack...)
 However, since we haven't called this quote, it will just sit at top of the stack, looking sad and forlorned.
 
 
@@ -101,12 +100,12 @@ Before I can ramble anymore, let's look at an example of this.
     :> [ 4 | :is_four ]
 
 This rather useless quote consists of a pattern of 4 separated by a '|' character from it's value of :is_four
-When a pattern equipped quote is applied, it completes 2.5 steps:
+When a pattern equipped quote is applied, it completes 3 steps:
 
   1. Pop n items off the stack, where n is the length of the pattern (in the case of an empty pattern this is zero)
   2. Check if these popped items are equal to the items in the pattern (if the pattern item is a variable any value will match)
-  3 a. If they don't match push the symbol :nil to the stack
-  3 b. If they do, replace bound variables in the quote body and call the quote as explained above  
+  3. If they don't match push the symbol :nil to the stack and put all the items back,
+     otherwise if they do, replace bound variables in the quote body and call the quote as explained above
 
 Let's try this out, but before we do allow me to introduce you to two new functions: `print` and `call`
 `print` takes a string off the stack and prints it, big surprise right...
