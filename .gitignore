@@ -16,3 +16,4 @@ cabal.sandbox.config
 .stack-work/
 .exe
 .bat
+geany_run_script.bat
