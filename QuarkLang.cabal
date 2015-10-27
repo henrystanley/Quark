@@ -17,11 +17,12 @@ build-type:          Simple
 cabal-version:       >=1.10
 extra-source-files:
     *.md
-    stdlib.qrk
+data-files:
+    prelude.qrk
 
 executable quark
   main-is:             Quark.hs
-  -- other-modules:
+  other-modules:       Paths_QuarkLang
   -- other-extensions:
   build-depends:       base >=4.8 && <4.9, containers >=0.5 && <0.6, parsec >=3.1 && <3.2, process >=1.2 && <1.3
   -- hs-source-dirs:

@@ -26,7 +26,12 @@ Making REPLs in the pond
 Assuming you managed to install Quark onto your IBM PC, PDP-11, or MIT Lisp Machine, let's fire up the repl.
 Quark has two modes of operation, interpreter and repl.
 To interpret a file, give `quark file-to-run.qrk` a try.
-To start the repl just type `quark` without any arguments.
+To start the repl you can just type `quark` without any arguments.
+Quark automatically loads the prelude (a minimal standard library) when it starts.
+For this tutorial however, we only want the Quark core functions, so start the repl like this:
+
+    $ quark --only-core
+
 If you managed to get this far you should see a prompt that looks like this:
 
     :>
@@ -381,10 +386,11 @@ The truth is, in Quark import is just a composition of two functions we've alrea
 Your Quark distribution should have come with the standard library, why don't we load it up?
 Hopefully you put it somewhere accessible.
 
-    :> '~/Quark/stdlib.qrk' load eval
+    :> '~/Quark/prelude.qrk' load eval
 
 Now presuming you have :ok on your stack, you can play with all the goodies in there.
 Check out the api documentation to figure out how all this stuff works.
+For convenience's sake Quark will use the prelude by default, so you won't have to add `load eval` to all your scripts.
 
 
 Philosophy
