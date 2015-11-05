@@ -52,51 +52,36 @@ data QType = Num
            | Atom
            | Str
            | Sym
-           | Quote QType QType
-           | Empty -- empty quote patterns or bodies have this value
-           | Any -- type of quote patterns or bodies with non-homogeneous types
-           | NotEmpty -- a quark value will never have this type, it is only used in type checking
+           | Quote
+           | Any -- wildcard
            deriving (Eq, Show)
 
 -- a list of quark types, used in core function definitions
 type QTypeSig = [QType]
 
 -- converts a quark value into a quark type
--- in the case of quotes:
---   if the quote pattern or body is homogeneous, it will use this type
---   if the quote pattern or body is empty it will use the `Empty` type
---   otherwise it will use the `Any` type
--- thus: [ 1 2 3 | :cow 'fish' hund ] :: Quote Num Any
 qtype :: QItem -> QType
 qtype (QNum _) = Num
 qtype (QAtom _) = Atom
 qtype (QSym _) = Sym
 qtype (QStr _) = Str
-qtype (QQuote args items) = Quote (inner_type args) (inner_type items)
-  where inner_type [] = Empty
-        inner_type xs = foldl' consistent_type (qtype (head xs)) (map qtype xs)
-        consistent_type (Quote x1 y1) (Quote x2 y2) = Quote (consistent_type x1 x2) (consistent_type y2 y2)
-        consistent_type x y = if x == y then x else Any
+qtype (QQuote _ _) = Quote
 
 -- converts the type of a quark item into a quark symbol
 qtypeLiteral :: QType -> QItem
-qtypeLiteral (Quote a b) = QQuote [] [(QSym "Quote"), qtypeLiteral a, qtypeLiteral b ]
 qtypeLiteral x = QSym . show $ x
 
 -- checks if two quark types match
--- oddball cases are:
---   Any, which matches everything
---   NotEmpty, which matches everything but `Empty`
---   and Quotes, which recursively compare their child types
+-- an oddball case is `Any`, which matches everything
+
 qtypeCompare :: QType -> QType -> Bool
 qtypeCompare Any _ = True
-qtypeCompare NotEmpty Empty = False
-qtypeCompare NotEmpty _ = True
-qtypeCompare (Quote a1 b1) (Quote a2 b2) = (qtypeCompare a1 a2) && (qtypeCompare b1 b2)
 qtypeCompare t1 t2 = t1 == t2
 
 -- checks to see if the top of the stack matches a type signature
 qtypeCheck :: QTypeSig -> QStack -> Bool
-qtypeCheck sig stack = if length stack < (length sig) then False
-  else foldl' (\z (x, y) -> z && (qtypeCompare x y)) True $ zip sig stack_sig
-    where stack_sig = map qtype . reverse . take (length sig) $ stack
+qtypeCheck [] _ = True
+qtypeCheck (x:xs) [] = False
+qtypeCheck (x:xs) (y:ys) = if qtypeCompare x (qtype y)
+  then qtypeCheck xs ys
+  else False

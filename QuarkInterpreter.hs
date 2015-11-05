@@ -113,7 +113,7 @@ raiseTypeError name sig stack = raiseError ("Primary function: " ++ name ++ " ex
 
 -- takes a quark function and typechecks it against the stack, if there are no errors it returns the function
 qfunc :: String -> QTypeSig -> (QVM -> IO (Maybe QVM)) -> (QVM -> IO (Maybe QVM))
-qfunc name sig f = (\vm -> if qtypeCheck sig (getStack vm)
+qfunc name sig f = (\vm -> if qtypeCheck (reverse sig) (getStack vm)
   then f vm
   else raiseTypeError name sig (getStack vm))
 
@@ -140,19 +140,19 @@ qlessthan = qfunc "<" [Num, Num] func
   where func ((QNum x) : (QNum y) : stack, t, l) = return $ Just (QSym (if x < y then "true" else "false") : stack, t, l)
 
 -- pushes an item into a quote body
-qpush = qfunc "<<" [Quote Any Any, Any] func
+qpush = qfunc "<<" [Quote, Any] func
   where func (x : (QQuote a xs) : s, t, l) = return $ Just ((QQuote a (reverse (x : (reverse xs)))) : s, t, l)
 
 -- pops an item from a quote body
-qpop = qfunc ">>" [Quote Any NotEmpty] func
+qpop = qfunc ">>" [Quote] func
   where func ((QQuote a xs) : s, t, l) = return $ Just (( head . reverse $ xs) : (QQuote a (reverse . tail . reverse $ xs)) : s, t, l)
 
 -- pushes an item into a quote pattern
-qargpush = qfunc "<@" [Quote Any Any, Any] func
+qargpush = qfunc "<@" [Quote, Any] func
   where func (x : (QQuote a xs) : s, t, l) = return $ Just ((QQuote (reverse (x : (reverse a))) xs) : s, t, l)
 
 -- pops an item from a quote pattern
-qargpop = qfunc "@>" [Quote NotEmpty Any] func
+qargpop = qfunc "@>" [Quote] func
   where func ((QQuote a xs) : s, t, l) = return $ Just (( head . reverse $ a) : (QQuote (reverse . tail . reverse $ a) xs) : s, t, l)
 
 -- prints the contents of the entire stack with a linebreak
@@ -180,11 +180,11 @@ qweld = qfunc "weld" [Str, Str] func
   where func ((QStr a) : (QStr b) : s, t, l) = return $ Just ((QStr (b ++ a)) : s, t, l)
 
 -- calls a quote
-qcall = qfunc "call" [Quote Any Any] func
+qcall = qfunc "call" [Quote] func
   where func (x : s, t, l) = (callQuote x (s, t, l))
 
 -- calls the first quote in a list of quotes that has a matching pattern
-qmatch = qfunc "match" [Quote Empty (Quote Any Any)] func
+qmatch = qfunc "match" [Quote] func
   where func ((QQuote _ quotes) : s, t, l) = callQuote (tryQuotes quotes s) (s, t, l)
         tryQuotes [] _ = QQuote [] []
         tryQuotes ((QQuote p q) : qs) s = case patternMatch (reverse p) s of
@@ -213,7 +213,7 @@ qcmd = qfunc "cmd" [Str] func
           return $ Just (QStr result : s, t, l)
 
 -- pops a symbol and quote. binds the symbol to the quote as a function in the vm
-qdef = qfunc "def" [Quote Any Any, Sym] func
+qdef = qfunc "def" [Quote, Sym] func
   where func ((QSym x) : y : s, t, l) = return $ Just (s, t, Map.insert x y l)
 
 -- evaluates a string of quark code by parsing it and concating these new values to the vm's token list

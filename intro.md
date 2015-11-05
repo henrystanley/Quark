@@ -341,8 +341,11 @@ Hindley–Milner!?
 
 Despite being a proponent of strongly typed languages myself, Quark is as dynamic as they come.
 Quark does have a type system though, as fluid and dangerous as it may be.
-Why don't we poke at it?
-Meet our final function (number 22), `type`:
+At runtime Quark will check to make sure core functions are being applied to the right arguments.
+Besides, that the type system tries to stay out of the way as much as it can.
+
+Here's our final function (number 22), `type`.
+`type` returns a symbol which corresponds with the type of the value:
 
     :> "Miskatonic University" type . clear
     :Str
@@ -352,29 +355,11 @@ Meet our final function (number 22), `type`:
     :Sym
     :> summon_cthulhu type . clear
     :Atom
+    :> [ 1 8 9 0 ] type . clear
+    :Quote
 
-For these simple values, `type` will return a symbol which corresponds with the type of the value.
-For quotes it's a little bit different:
-
-    :> [ 1 2 3 ] type . clear
-    [ :Quote :Empty :Num ]
-    :> [ a | 2 3 ] type . clear
-    [ :Quote :Atom :Num ]
-    :> [ 5 :f 'shoggoth' ] type . clear
-    [ :Quote :Empty :Any ]
-
-When we call `type` on a quote it returns a quote whose first item is :Quote.
-The second item is the type of the quote's pattern, and the third is the type of the quote's body.
-But what's all this :Any and :Empty business?
-
-When `type` checks the type of a quote's body or pattern, if the contents are homogeneous it returns that type.
-So, [:a :b :d] would be of type :Sym
-If however, multiple different types are present, like in example 3, it return :Any.
-The type of an empty body or pattern is :Empty.
-
-There you have it, a simple dynamic type system.
-Because of `type` it's possible to build a typechecking system in Quark.
-It is also possible to define functions which act differently on different types.
+Because of `type` it's possible to build a fancier typechecking system in Quark.
+In the future hopefully the prelude will have one included, but for now you'll have to write your own.
 
 
 Something's missing...
