@@ -2,6 +2,7 @@ module QuarkParser (qParse) where
 
 import Text.Parsec
 import Text.Parsec ((<|>))
+import qualified Data.Sequence as Seq
 import QuarkType
 
 --- Numbers ---
@@ -74,7 +75,7 @@ qquote = do
   quote <- qtokens
   qsep
   char ']'
-  return $ QQuote args quote
+  return $ QQuote (Seq.fromList args) (Seq.fromList quote)
 
 
 --- Syntatic Structure ---

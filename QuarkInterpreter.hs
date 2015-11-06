@@ -1,8 +1,14 @@
+{-# LANGUAGE ViewPatterns #-}
+
 module QuarkInterpreter (runQuark, emptyQVM) where
 
 import QuarkType
 import QuarkParser
 import qualified Data.Map.Strict as Map
+import qualified Data.Sequence as Seq
+import Data.Sequence ((><), (<|), (|>), viewr, viewl)
+import Data.Sequence (ViewL(..))
+import Data.Sequence (ViewR(..))
 import Data.Maybe
 import Data.List
 import System.Process
@@ -18,7 +24,7 @@ eval vm = case useTop vm of
 
 -- used to check if the top item of the token list is a function, if it is, returns this function
 useTop :: QVM -> Maybe (QVM -> IO (Maybe QVM))
-useTop (stack, (QAtom a) : xs, lib) = case coreFunc a of
+useTop (stack, (viewl -> (QAtom a) :< sq), lib) = case coreFunc a of
   Just f -> Just f
   Nothing -> let fromLib = libFunc a lib in case fromLib of
     Just f -> Just f
@@ -27,12 +33,12 @@ useTop vm = Nothing
 
 -- drops the top item from the tokens list
 dropTopToken :: QVM -> QVM
-dropTopToken (s, [], l) = (s, [], l)
-dropTopToken (s, t:ts, l) = (s, ts, l)
+dropTopToken (s, (viewl -> EmptyL), l) = (s, Seq.empty, l)
+dropTopToken (s, (viewl -> x :< sq), l) = (s, sq, l)
 
 -- pushes the top item of the tokens stack to the data stack
 pushTop :: QVM -> QVM
-pushTop (stack, tokens, lib) = ((head tokens) : stack, tail tokens, lib)
+pushTop (stack, (viewl -> x :< sq), lib) = (x : stack, sq, lib)
 
 -- map of strings to the core quark functions, returns `Nothing` if the string is not a core function
 -- this seems like an inelegant way to do this, perhaps in the future I'll find a better way to implement it
@@ -68,36 +74,36 @@ libFunc var lib = Map.lookup var lib >>= (\f -> Just (\vm -> callQuote f vm))
 -- this is the function responsible for the behavior of the `call` quark function
 -- it is also used in `match` if a matching quote is found
 callQuote :: QItem -> QVM -> IO (Maybe QVM)
-callQuote (QQuote args values) (stack, tokens, lib) = case patternMatch (reverse args) stack of
-  Just bindings -> return . Just $ (drop (length args) stack, (libSub values bindings) ++ tokens, lib)
-  Nothing -> return $ Just (QSym "nil" : (drop (length args) stack), tokens, lib)
+callQuote (QQuote args values) (stack, tokens, lib) = case patternMatch args stack of
+  Just bindings -> return . Just $ (drop (Seq.length args) stack, (libSub values bindings) >< tokens, lib)
+  Nothing -> return $ Just (QSym "nil" : (drop (Seq.length args) stack), tokens, lib)
 callQuote x (s, t, l) = raiseError "Tried to call a value that wasn't a quote"
 
 -- checks to make sure the items a quote is being applied to match the quotes pattern
 -- if these items do match, it returns the variable bindings for the quote body
-patternMatch :: [QItem] -> QStack -> Maybe QLib
+patternMatch :: Seq.Seq QItem -> QStack -> Maybe QLib
 patternMatch pattern stack = qmatch Map.empty pattern stack
-  where qmatch l [] _ = Just l
+  where qmatch l (viewr -> Seq.EmptyR) _ = Just l
         qmatch l _ [] = Nothing
-        qmatch l (QAtom x : xs) (y : ys) = if Map.member x l
-          then if (l Map.! x) == y then qmatch l xs ys else Nothing
-          else qmatch (Map.insert x y l) xs ys
-        qmatch l (x : xs) (y : ys) = if x == y then qmatch l xs ys else Nothing
+        qmatch l (viewr -> sq :> (QAtom x)) (y : ys) = if Map.member x l
+          then if (l Map.! x) == y then qmatch l sq ys else Nothing
+          else qmatch (Map.insert x y l) sq ys
+        qmatch l (viewr -> sq :> x) (y : ys) = if x == y then qmatch l sq ys else Nothing
 
 -- before a quote body is evaluated, this function replaces variables with their binding from the quote pattern
-libSub :: [QItem] -> QLib -> [QItem]
-libSub [] _ = []
-libSub (QAtom x : xs) l = if Map.member x l then (l Map.! x) : (libSub xs l) else (QAtom x) : (libSub xs l)
-libSub (QQuote args items : xs) l = QQuote (libSub args l) (libSub items l) : (libSub xs l)
-libSub (x : xs) l = x : (libSub xs l)
+libSub :: Seq.Seq QItem -> QLib -> Seq.Seq QItem
+libSub (viewl -> Seq.EmptyL) _ = Seq.empty
+libSub (viewl -> (QAtom x) :< sq) l = (if Map.member x l then (l Map.! x) else (QAtom x)) <| (libSub sq l)
+libSub (viewl -> (QQuote args items) :< sq) l = QQuote (libSub args l) (libSub items l) <| (libSub sq l)
+libSub (viewl -> x :< sq) l = x <| (libSub sq l)
 
 -- concat items to a quark vm's token stack
-fillQVM :: QVM -> QStack -> QVM
-fillQVM (s, t, l) t' = (s, t' ++ t, l)
+fillQVM :: QVM -> QProg -> QVM
+fillQVM (s, t, l) t' = (s, t' >< t, l)
 
 -- a base quark vm, obviously all quark programs start with this
 emptyQVM :: QVM
-emptyQVM = ([], [], Map.empty)
+emptyQVM = ([], Seq.empty, Map.empty)
 
 
 --- Core Function Utils ---
@@ -141,19 +147,21 @@ qlessthan = qfunc "<" [Num, Num] func
 
 -- pushes an item into a quote body
 qpush = qfunc "<<" [Quote, Any] func
-  where func (x : (QQuote a xs) : s, t, l) = return $ Just ((QQuote a (reverse (x : (reverse xs)))) : s, t, l)
+  where func (x : (QQuote a sq) : s, t, l) = return $ Just ((QQuote a (sq |> x)) : s, t, l)
 
 -- pops an item from a quote body
 qpop = qfunc ">>" [Quote] func
-  where func ((QQuote a xs) : s, t, l) = return $ Just (( head . reverse $ xs) : (QQuote a (reverse . tail . reverse $ xs)) : s, t, l)
+  where func ((QQuote a (viewr -> sq :> x)) : s, t, l) = return $ Just (x : (QQuote a sq) : s, t, l)
+        func ((QQuote a (viewr -> EmptyR)) : s, t, l) = return $ Just ((QQuote a Seq.empty) : s, t, l)
 
 -- pushes an item into a quote pattern
 qargpush = qfunc "<@" [Quote, Any] func
-  where func (x : (QQuote a xs) : s, t, l) = return $ Just ((QQuote (reverse (x : (reverse a))) xs) : s, t, l)
+  where func (x : (QQuote a xs) : s, t, l) = return $ Just ((QQuote (a |> x) xs) : s, t, l)
 
 -- pops an item from a quote pattern
 qargpop = qfunc "@>" [Quote] func
-  where func ((QQuote a xs) : s, t, l) = return $ Just (( head . reverse $ a) : (QQuote (reverse . tail . reverse $ a) xs) : s, t, l)
+  where func ((QQuote (viewr -> sq :> x) xs) : s, t, l) = return $ Just (x : (QQuote sq xs) : s, t, l)
+        func ((QQuote (viewr -> EmptyR) xs) : s, t, l) = return $ Just ((QQuote Seq.empty xs) : s, t, l)
 
 -- prints the contents of the entire stack with a linebreak
 qprintall = qfunc "." [] func
@@ -173,7 +181,7 @@ qshow = qfunc "show" [Any] func
 
 -- pops a string and pushes a quote containing a string for each character in the string
 qchars = qfunc "chars" [Str] func
-  where func ((QStr xs) : s, t, l) = return $ Just (QQuote [] (map (QStr . (\c -> [c])) xs) : s, t, l)
+  where func ((QStr xs) : s, t, l) = return $ Just (QQuote Seq.empty ((Seq.fromList . map (QStr . (\c -> [c]))) xs) : s, t, l)
 
 -- pops two strings and concats them
 qweld = qfunc "weld" [Str, Str] func
@@ -186,10 +194,10 @@ qcall = qfunc "call" [Quote] func
 -- calls the first quote in a list of quotes that has a matching pattern
 qmatch = qfunc "match" [Quote] func
   where func ((QQuote _ quotes) : s, t, l) = callQuote (tryQuotes quotes s) (s, t, l)
-        tryQuotes [] _ = QQuote [] []
-        tryQuotes ((QQuote p q) : qs) s = case patternMatch (reverse p) s of
+        tryQuotes (viewl -> Seq.EmptyL) _ = QQuote Seq.empty Seq.empty
+        tryQuotes (viewl -> (QQuote p q) :< sq) s = case patternMatch p s of
           Just bindings -> (QQuote p q)
-          Nothing -> tryQuotes qs s
+          Nothing -> tryQuotes sq s
 
 
 -- these are the scary non-pure functions:
@@ -240,13 +248,13 @@ runQuark quiet iovm s = case qParse s of
   Left perror -> if not quiet then raiseError $ "Parse Error: " ++ (show perror) else return Nothing
   Right tokens -> do
     vm <- iovm
-    let vm' = (return . Just) (fillQVM vm tokens) in recEval vm'
+    let vm' = (return . Just) (fillQVM vm (Seq.fromList tokens)) in recEval vm'
 
 -- reduces a quark vm until its token stack is empty
 recEval :: IO (Maybe QVM) -> IO (Maybe QVM)
 recEval iovm = do
   vm <- iovm
   case vm of
-    Just (s, [], l) -> return $ Just (s, [], l)
+    Just (s, (viewl -> Seq.EmptyL), l) -> return $ Just (s, Seq.empty, l)
     Just x -> recEval $ eval x
     Nothing -> return Nothing

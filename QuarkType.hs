@@ -1,12 +1,12 @@
 module QuarkType where
 
 import qualified Data.Map as Map
-import Data.List
+import qualified Data.Sequence as Seq
 
 --- Quark Types ---
 
 data QItem = QNum Double -- Number
-           | QQuote [QItem] [QItem] -- Quote
+           | QQuote (Seq.Seq QItem) (Seq.Seq QItem) -- Quote
            | QAtom String -- Atom (function name or variable)
            | QSym String -- Symbol
            | QStr String -- String
@@ -18,15 +18,18 @@ type QLib = Map.Map String QItem
 -- data stack type
 type QStack = [QItem]
 
+-- sequence to hold unevaluated items
+type QProg = Seq.Seq QItem
+
 -- a tuple containing a data stack, a list of quark items to evaluate, and an index of functions
-type QVM = ([QItem], [QItem], QLib)
+type QVM = (QStack, QProg, QLib)
 
 -- getters for the QVM type
 
 getStack :: QVM -> QStack
 getStack (s, _, _) = s
 
-getTokens:: QVM -> [QItem]
+getTokens:: QVM -> QProg
 getTokens (_, t, _) = t
 
 getLib :: QVM -> QLib
@@ -40,8 +43,11 @@ serializeQ (QAtom x) = x
 serializeQ (QSym x) = ':' : x
 serializeQ (QStr x) = "\"" ++ x ++ "\""
 serializeQ (QQuote args vals) = "[ " ++ s_args ++ s_vals ++ " ]"
-  where s_args = if args == [] then "" else intercalate " " (map serializeQ args) ++ " | "
-        s_vals = intercalate " " $ map serializeQ vals
+  where join_with_spaces sq = case (foldl (++) "" $ fmap ((" " ++) . serializeQ) sq) of
+          [] -> ""
+          (_:xs) -> xs
+        s_args = if Seq.null args then "" else (join_with_spaces args) ++ " | "
+        s_vals = join_with_spaces vals
 
 
 --- Quark Type Signatures ---
@@ -73,7 +79,6 @@ qtypeLiteral x = QSym . show $ x
 
 -- checks if two quark types match
 -- an oddball case is `Any`, which matches everything
-
 qtypeCompare :: QType -> QType -> Bool
 qtypeCompare Any _ = True
 qtypeCompare t1 t2 = t1 == t2
