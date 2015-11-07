@@ -8,7 +8,7 @@
 
 [ q n | [ q match ] n def ] :mdef def
 
-[ call ] :; def 
+[ call ] :; def
 
 
 "## Stack Manipulation Operators ##" comment
@@ -17,26 +17,51 @@
 
 [ x y | y x ] :swap def
 
-[ y x f | y f call x ] :dip def
+[ x y | y ] :nip def
 
 [ x y | x y x ] :dipdup def
 
 [ x y z | z x y ] :rot def
 
+[ x y z | y z x ] :-rot def
+
 [[ x | clear ]] :clear mdef
+
+
+"## Combinators ##" comment
+
+[ x y f | x f call y ] :dip def
+
+[ x y z f | x y f call z ] :double-dip def
+
+[ w x y z f | w x y f call z ] :triple-dip def
+
+[ x fa fb | x fa call x fb call ] :bi def
+
+[ x fa fb fc | x fa call a fb call x fc call ] :tri def
+
+[ q fa fb | q call fa call q call fb call ] :q-bi def
+
+[ x y fx fy | x fx call y fy call ] :bi-call def
+
+[ x y z fx fy fz | x fx call y fy call z fz call ] :tri-call def
 
 
 "## Numeric Operators ##" comment
 
 [ -1 * + ] :- def
 
-[ swap < ] :> def
-
 [ 1 + ] :++ def
 
 [ -1 + ] :-- def
 
 [ 1 swap [ [ dup ] dip * ] times-do swap drop ] :^ def
+
+[ swap < ] :> def
+
+[ x y | [ x y ] [<] [=] q-bi or ] :<= def
+
+[ x y | [ x y ] [>] [=] q-bi or ] :>= def
 
 
 "## String Operators ##" comment
@@ -55,20 +80,26 @@
 [[ :true | :nil ] [ x | :true ]] :not mdef
 
 [ = not ] :!= def
- 
+
+[ x y | [ x y ] [!=] [or] q-bi and ] :xor mdef
+
 
 "## Control Flow ##" comment
 
-[[ :true x y | x call ] [ z x y | y call ]] :if mdef
+[[ :true x | x call ] [ z x | ]] :if mdef
 
-[[ 0 f | ] [ n f | f call n 1 - f times-do ]] :times-do mdef 
+[[ :true x y | x call ] [ z x y | y call ]] :if-else mdef
+
+[[ 0 f | ] [ n f | f call n 1 - f times-do ]] :times-do mdef
+
+[ p f | p call not [ f call p f while ] if ] :while def
+
+
+"## Quote Functions ##" comment
 
 [[ [] x f | x ] [ xs x f | xs >> x f call f fold ]] :fold mdef
 
 [[ [] f | [] ] [ xs f | xs >> [ f map ] dip f call << ]] :map mdef
-
-
-"## Quote Functions ##" comment
 
 [ [] [ swap << ] fold ] :reverse def
 
