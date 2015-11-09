@@ -4,6 +4,7 @@ import QuarkType
 import System.Environment
 import System.IO
 import Paths_QuarkLang
+import qualified Data.Map as Map
 
 -- entry point for the program
 -- if quark is run with an argument it will be run as a script, otherwise it starts the REPL
@@ -38,16 +39,29 @@ qInterpret vm scriptname  = do
   return ()
 
 
--- read eval print loop
--- prints prompt, gets input, quits if input is '*q', evaulates the input, then prints the result (or an error)
+-- read eval loop
+-- prints prompt, gets input, then handles special cmds or evaulates the input
 qRepl :: IO QVM -> IO ()
 qRepl vm = do
   putStr ":> "
   input <- getLine
-  case input of
-    "*q" -> return ()
-    str -> do
-      reduced <- runQuark False vm str
+  case words input of
+    ["*q"] -> return ()
+    ["*f"] -> vm >>= displayFunctions >> qRepl vm
+    ["*f", f] -> vm >>= (displayFunction f) >> qRepl vm
+    otherwise -> do
+      reduced <- runQuark False vm input
       case reduced of
         Nothing -> qRepl vm
         Just vm' -> qRepl (return vm')
+
+-- print all runtime defined functions from a QVM
+displayFunctions :: QVM -> IO ()
+displayFunctions (_, _, funcs) = mapM putStr toPrint >> return ()
+  where toPrint = map (\(f, v) -> f ++ "\n    " ++ (serializeQ v) ++ "\n\n") $ Map.assocs funcs
+
+-- print a specific runtime defined function from a QVM
+displayFunction :: String -> QVM -> IO ()
+displayFunction f (_, _, funcs) = putStrLn $ case Map.lookup f funcs of
+  Just func -> serializeQ func
+  Nothing -> "No such function: " ++ f
