@@ -42,11 +42,11 @@ serializeQ (QNum x) = show x
 serializeQ (QAtom x) = x
 serializeQ (QSym x) = ':' : x
 serializeQ (QStr x) = "\"" ++ x ++ "\""
-serializeQ (QQuote args vals) = "[ " ++ s_args ++ s_vals ++ " ]"
+serializeQ (QQuote args vals) = "[" ++ s_args ++ s_vals ++ "]"
   where join_with_spaces sq = case (foldl (++) "" $ fmap ((" " ++) . serializeQ) sq) of
           [] -> ""
-          (_:xs) -> xs
-        s_args = if Seq.null args then "" else (join_with_spaces args) ++ " | "
+          xs -> xs ++ " "
+        s_args = if Seq.null args then "" else join_with_spaces args ++ "|"
         s_vals = join_with_spaces vals
 
 
