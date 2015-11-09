@@ -17,31 +17,23 @@ import System.Process
 --- Evaluation ---
 
 -- main evaluation function, takes a quark vm and (assuming there aren't any errors) returns its reduction
+-- if the top item is a fuction, run it
+-- otherwise, push the top item to the data stack
 eval :: QVM -> IO (Maybe QVM)
-eval vm = case useTop vm of
-  Just f -> f (dropTopToken vm) -- if the top item is a fuction, run it
-  Nothing -> return . Just $ pushTop vm -- otherwise, push the top item to the data stack
+eval (stack, (viewl -> (QAtom a) :< sq), lib) = (getFunc lib a) (stack, sq, lib)
+eval (stack, (viewl -> x :< sq), lib) =  return . Just $ (x : stack, sq, lib)
 
--- used to check if the top item of the token list is a function, if it is, returns this function
-useTop :: QVM -> Maybe (QVM -> IO (Maybe QVM))
-useTop (stack, (viewl -> (QAtom a) :< sq), lib) = case coreFunc a of
-  Just f -> Just f
-  Nothing -> let fromLib = libFunc a lib in case fromLib of
-    Just f -> Just f
-    Nothing -> Just (\_ -> raiseError ("No such function: " ++ a))
-useTop vm = Nothing
-
--- drops the top item from the tokens list
-dropTopToken :: QVM -> QVM
-dropTopToken (s, (viewl -> EmptyL), l) = (s, Seq.empty, l)
-dropTopToken (s, (viewl -> x :< sq), l) = (s, sq, l)
-
--- pushes the top item of the tokens stack to the data stack
-pushTop :: QVM -> QVM
-pushTop (stack, (viewl -> x :< sq), lib) = (x : stack, sq, lib)
+-- tries to retrieve a core or runtime defined function
+-- if this fails, returns a `No such function: ` yeilding function
+getFunc :: QLib -> String -> (QVM -> IO (Maybe QVM))
+getFunc lib fname = case coreFunc fname of
+  Just f -> f
+  Nothing -> case libFunc fname lib of
+    Just f -> f
+    Nothing -> (\_ -> raiseError ("No such function: " ++ fname))
 
 -- map of strings to the core quark functions, returns `Nothing` if the string is not a core function
--- this seems like an inelegant way to do this, perhaps in the future I'll find a better way to implement it
+-- this is ugly, but I believe it is the fastest way to implement this kind of lookup
 coreFunc :: String -> Maybe (QVM -> IO (Maybe QVM))
 coreFunc "+" = Just qadd
 coreFunc "*" = Just qmult
