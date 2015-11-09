@@ -38,7 +38,7 @@ getLib (_, _, l) = l
 -- converts a possibly nested quark item, into a string of the equivelent quark code
 -- reverse parsing, if you will
 serializeQ :: QItem -> String
-serializeQ (QNum x) = show x
+serializeQ (QNum x) = if (ceiling x) == (floor x) then (show . floor) x else show x
 serializeQ (QAtom x) = x
 serializeQ (QSym x) = ':' : x
 serializeQ (QStr x) = "\"" ++ x ++ "\""
