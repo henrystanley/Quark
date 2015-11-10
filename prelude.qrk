@@ -97,6 +97,14 @@
 
 "## Quote Functions ##" comment
 
+[ @- drop ] :pattern def
+
+[ @- nip ] :body def
+
+[ @- swap >> [ swap @+ ] dip ] :@> def
+
+[ q x | q @- swap x << swap @+ ] :<@ def
+
 [[ [] x f | x ] [ xs x f | xs >> x f call f fold ]] :fold mdef
 
 [[ [] f | [] ] [ xs f | xs >> [ f map ] dip f call << ]] :map mdef

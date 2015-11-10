@@ -42,8 +42,8 @@ coreFunc "/" = Just qdiv
 coreFunc "<" = Just qlessthan
 coreFunc "<<" = Just qpush
 coreFunc ">>" = Just qpop
-coreFunc "<@" = Just qargpush
-coreFunc "@>" = Just qargpop
+coreFunc "@+" = Just qquotejoin
+coreFunc "@-" = Just qquotesplit
 coreFunc "." = Just qprintall
 coreFunc "print" = Just qprint
 coreFunc "show" = Just qshow
@@ -148,13 +148,12 @@ qpop = qfunc ">>" [Quote] func
         func ((QQuote a (viewr -> EmptyR)) : s, t, l) = return $ Just ((QQuote a Seq.empty) : s, t, l)
 
 -- pushes an item into a quote pattern
-qargpush = qfunc "<@" [Quote, Any] func
-  where func (x : (QQuote a xs) : s, t, l) = return $ Just ((QQuote (a |> x) xs) : s, t, l)
+qquotejoin = qfunc "@+" [Quote, Quote] func
+  where func ((QQuote _ xs) : (QQuote _ ys) : s, t, l) = return $ Just ((QQuote ys xs) : s, t, l)
 
 -- pops an item from a quote pattern
-qargpop = qfunc "@>" [Quote] func
-  where func ((QQuote (viewr -> sq :> x) xs) : s, t, l) = return $ Just (x : (QQuote sq xs) : s, t, l)
-        func ((QQuote (viewr -> EmptyR) xs) : s, t, l) = return $ Just ((QQuote Seq.empty xs) : s, t, l)
+qquotesplit = qfunc "@-" [Quote] func
+  where func ((QQuote ys xs) : s, t, l) = return $ Just ((QQuote Seq.empty xs) : (QQuote Seq.empty ys) : s, t, l)
 
 -- prints the contents of the entire stack with a linebreak
 qprintall = qfunc "." [] func
