@@ -12,6 +12,7 @@ import Data.Sequence (ViewR(..))
 import Data.Maybe
 import Data.List
 import System.Process
+import Control.Exception
 
 
 --- Evaluation ---
@@ -197,20 +198,29 @@ qmatch = qfunc "match" [Quote] func
 -- pops a string and loads the file with this filename, then pushes back the contents of the file as a string
 qload = qfunc "load" [Str] func
   where func ((QStr filename) : s, t, l) = do
-          file <- readFile filename
-          return $ Just (QStr file : s, t, l)
+          read_str <- try (readFile filename) :: IO (Either SomeException String)
+          let stack_top = case read_str of {
+            Left _ -> [QSym "not-ok"];
+            Right s -> [QSym "ok", QStr s]; }
+          return . Just $ (stack_top ++ s, t, l)
 
 -- pops two strings, uses the first as a filename to save as and the second as the file contents
 qwrite = qfunc "write" [Str, Str] func
   where func ((QStr filename) : (QStr toWrite) : s, t, l) = do
-          writeFile filename toWrite
-          return $ Just (s, t, l)
+          wrote <- try (writeFile filename toWrite) :: IO (Either SomeException ())
+          let stack_top = case wrote of {
+            Left _ -> [QSym "not-ok"];
+            Right _ -> [QSym "ok"]; }
+          return . Just $ (stack_top ++ s, t, l)
 
 -- pops a string and runs it as a shell command, pushes the output of the command as a string
 qcmd = qfunc "cmd" [Str] func
   where func ((QStr cmd) : s, t, l) = do
-          result <- System.Process.readCreateProcess (System.Process.shell cmd) ""
-          return $ Just (QStr result : s, t, l)
+          result <- try (System.Process.readCreateProcess (System.Process.shell cmd) "") :: IO (Either SomeException String)
+          let stack_top = case result of {
+            Left _ -> [QSym "not-ok"];
+            Right s -> [QSym "ok", QStr s]; }
+          return . Just $ (stack_top ++ s, t, l)
 
 -- pops a symbol and quote. binds the symbol to the quote as a function in the vm
 qdef = qfunc "def" [Quote, Sym] func
@@ -222,8 +232,7 @@ qeval = qfunc "eval" [Str] func
     evaled <- runQuark True (return (s, t, l)) x;
     case evaled of
       Nothing -> return $ Just ((QSym "not-ok") : s, t, l)
-      Just (s', t', l') -> return $ Just ((QSym "ok") : s', t', l');
-  }
+      Just (s', t', l') -> return $ Just ((QSym "ok") : s', t', l'); }
 
 -- exits the interpreter (only if in script mode)
 qexit = qfunc "exit" [] func
