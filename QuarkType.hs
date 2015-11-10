@@ -49,6 +49,17 @@ serializeQ (QQuote args vals) = "[" ++ s_args ++ s_vals ++ "]"
         s_args = if Seq.null args then "" else join_with_spaces args ++ "|"
         s_vals = join_with_spaces vals
 
+-- used in REPL
+-- if a quote pattern/body has more than 20 items it is cut-off and "..." is appended
+safeSerializeQ :: QItem -> String
+safeSerializeQ (QQuote args vals) = "[" ++ s_args ++ s_vals ++ "]"
+  where join_with_spaces sq = case (foldl (++) "" $ fmap ((" " ++) . serializeQ) (Seq.take 20 sq)) of
+          [] -> ""
+          xs -> xs ++ " "
+        s_args = if Seq.null args then "" else join_with_spaces args ++ (if Seq.length args > 20 then "..." else "") ++ "|"
+        s_vals = join_with_spaces vals ++ (if Seq.length vals > 20 then "..." else "")
+safeSerializeQ x = serializeQ x
+
 
 --- Quark Type Signatures ---
 

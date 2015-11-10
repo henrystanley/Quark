@@ -5,6 +5,7 @@ import System.Environment
 import System.IO
 import Paths_QuarkLang
 import qualified Data.Map as Map
+import Data.List
 
 -- entry point for the program
 -- if quark is run with an argument it will be run as a script, otherwise it starts the REPL
@@ -53,7 +54,15 @@ qRepl vm = do
       reduced <- runQuark False vm input
       case reduced of
         Nothing -> qRepl vm
-        Just vm' -> qRepl (return vm')
+        Just vm' -> do
+          displayStack vm'
+          qRepl (return vm')
+
+-- prints the stack
+displayStack :: QVM -> IO ()
+displayStack vm = putStrLn stackStr
+  where stackStr = intercalate " " . map safeSerializeQ . reverse . getStack $ vm
+
 
 -- print all runtime defined functions from a QVM
 displayFunctions :: QVM -> IO ()
