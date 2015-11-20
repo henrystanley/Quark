@@ -12,8 +12,11 @@ data QItem = QNum Double -- Number
            | QStr String -- String
            deriving (Eq, Show, Ord)
 
+-- function names
+type FuncName = String
+
 -- type used to store defined functions
-type QLib = Map.Map String QItem
+type QLib = Map.Map FuncName QItem
 
 -- data stack type
 type QStack = [QItem]
@@ -34,6 +37,9 @@ getTokens (_, t, _) = t
 
 getLib :: QVM -> QLib
 getLib (_, _, l) = l
+
+-- interpreter state
+type IState = IO (Maybe QVM)
 
 -- converts a possibly nested quark item, into a string of the equivelent quark code
 -- reverse parsing, if you will

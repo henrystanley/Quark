@@ -101,141 +101,165 @@ emptyQVM = ([], Seq.empty, Map.empty)
 
 --- Core Function Utils ---
 
--- raises an error in the quark interpreter (who would have thought?)
-raiseError :: String -> IO (Maybe QVM)
+-- checks if a function is a core function
+isCoreFunc :: FuncName -> Bool
+isCoreFunc f = elem f coreFuncNames
+  where coreFuncNames = [
+    "+", "*", "/", "<", "<<",
+    ">>", "@+", "@-", ".", "print",
+    "show", "chars", "weld", "type",
+    "load", "write", "cmd", "call",
+    "match", "def", "eval", "exit"]
+
+-- core function dispatch
+coreFunc :: FuncName -> Maybe (QVM -> IState)
+coreFunc s = if isCoreFunc then Just $ cf s else Nothing
+  where
+    -- numeric functions
+    cf "+" = qNumFunc (+)
+    cf "*" = qNumFunc (*)
+    cf "/" = qNumFunc (/)
+    -- pure functions
+    cf "<" = qPureFunc "<" [Num, Num] qlessthan
+    cf "<<" = qPureFunc "<<" [Quote, Any] qpush
+    cf ">>" = qPureFunc ">>" [Quote] qpop
+    cf "@+" = qPureFunc "@+" [Quote, Quote] qunite
+    cf "@-" = qPureFunc "@-" [Quote] qseparate
+    cf "show" = qPureFunc "show" [Any] qshow
+    cf "chars" = qPureFunc "chars" [Str] qchars
+    cf "weld" = qPureFunc "weld" [Str, Str] qweld
+    cf "type" = qPureFunc "type" [Any] qtypei
+    cf "call" = qPureFunc "call" [Quote] qcall
+    cf "match" = qPureFunc "match" [Quote] qmatch
+    cf "def" = qPureFunc "def" [Quote, Sym] qdef
+    -- impure functions
+    cf "." = qFunc "." [] qprintstack
+    cf "load" = qFunc "load" [Str] qload
+    cf "write" = qFunc "write" [Str, Str] qwrite
+    cf "cmd" = qFunc "cmd" [Str] qcmd
+    cf "print" = qFunc "print" [Str] qprint
+    cf "eval" = qFunc "eval" [Str] qevali
+    cf "exit" = qFunc "exit" [] qexit
+
+
+-- Error Builders
+
+-- raises an error in the quark interpreter
+raiseError :: String -> IState
 raiseError str = putStrLn ("ERROR: " ++ str) >> return Nothing
 
 -- specific error function for type mis-matches of quark core functions
-raiseTypeError :: String -> QTypeSig -> QStack -> IO (Maybe QVM)
+raiseTypeError :: String -> QTypeSig -> QStack -> IState
 raiseTypeError name sig stack = raiseError ("Primary function: " ++ name ++ " expected a stack of: " ++ (show sig) ++ " but instead got: " ++ (show stack_sig))
   where stack_sig = map qtype . reverse . take (length sig) $ stack
 
--- takes a quark function and typechecks it against the stack, if there are no errors it returns the function
-qfunc :: String -> QTypeSig -> (QVM -> IO (Maybe QVM)) -> (QVM -> IO (Maybe QVM))
-qfunc name sig f = (\vm -> if qtypeCheck (reverse sig) (getStack vm)
+
+-- Function Builders
+
+-- wraps a quark function with type checking
+qFunc :: FuncName -> QTypeSig -> (QVM -> IState) -> (QVM -> IState)
+qFunc name sig f = (\vm -> if qtypeCheck (reverse sig) (getStack vm)
   then f vm
   else raiseTypeError name sig (getStack vm))
 
--- shortcut for defining quark core functions which are mathematical operators (Num -> Num -> Num)
-qmathFunc :: String -> (Double -> Double -> Double) -> (QVM -> IO (Maybe QVM))
-qmathFunc name f = qfunc name [Num, Num] (\((QNum y) : (QNum x) : s, t, l) -> return (Just (QNum (f x y) : s, t, l)))
+-- wraps a pure quark function with type checking
+qPureFunc :: FuncName -> QTypeSig -> (QVM -> QVM) -> (QVM -> IState)
+qPureFunc name sig f = qFunc name sig (return . Just . f)
+
+-- wraps a numeric quark function with type checking
+qNumFunc :: FuncName -> (Double -> Double -> Double) -> (QVM -> IState)
+qNumFunc name f = qPureFunc name [Num, Num] f'
+  where f' (QNum a : QNum b : s, t, l) = (QNum (f a b) : s, t, l)
 
 
---- Core Functions ---
+--- Core Function Implementations ---
 
--- the following are the nice pure-ish core functions:
 
--- addition
-qadd = qmathFunc "+" (+)
-
--- subtraction
-qmult = qmathFunc "*" (*)
-
--- multipication
-qdiv = qmathFunc "/" (/)
+-- Pure Functions:
 
 -- compares two numbers
-qlessthan = qfunc "<" [Num, Num] func
-  where func ((QNum x) : (QNum y) : stack, t, l) = return $ Just (QSym (if x < y then "true" else "false") : stack, t, l)
+qlessthan ((QNum x) : (QNum y) : s, t, l) = (QSym (if x < y then "true" else "false") : s, t, l)
 
 -- pushes an item into a quote body
-qpush = qfunc "<<" [Quote, Any] func
-  where func (x : (QQuote a sq) : s, t, l) = return $ Just ((QQuote a (sq |> x)) : s, t, l)
+qpush (x : (QQuote a sq) : s, t, l) = ((QQuote a (sq |> x)) : s, t, l)
 
 -- pops an item from a quote body
-qpop = qfunc ">>" [Quote] func
-  where func ((QQuote a (viewr -> sq :> x)) : s, t, l) = return $ Just (x : (QQuote a sq) : s, t, l)
-        func ((QQuote a (viewr -> EmptyR)) : s, t, l) = return $ Just ((QQuote a Seq.empty) : s, t, l)
+qpop ((QQuote a (viewr -> sq :> x)) : s, t, l) = (x : (QQuote a sq) : s, t, l)
+qpop ((QQuote a (viewr -> EmptyR)) : s, t, l) = ((QQuote a Seq.empty) : s, t, l)
 
--- pushes an item into a quote pattern
-qquotejoin = qfunc "@+" [Quote, Quote] func
-  where func ((QQuote _ xs) : (QQuote _ ys) : s, t, l) = return $ Just ((QQuote ys xs) : s, t, l)
+-- makes the body of the second quote the pattern of the first quote
+qunite ((QQuote _ xs) : (QQuote _ ys) : s, t, l) = ((QQuote ys xs) : s, t, l)
 
--- pops an item from a quote pattern
-qquotesplit = qfunc "@-" [Quote] func
-  where func ((QQuote ys xs) : s, t, l) = return $ Just ((QQuote Seq.empty xs) : (QQuote Seq.empty ys) : s, t, l)
+-- splits a quote into two new quotes, whose bodies contain the pattern and body of the original quote
+qseparate ((QQuote ys xs) : s, t, l) = return $ Just ((QQuote Seq.empty xs) : (QQuote Seq.empty ys) : s, t, l)
 
--- prints the contents of the entire stack with a linebreak
-qprintall = qfunc "." [] func
-  where func (s, t, l) = (putStrLn . intercalate " " . map serializeQ . reverse) s >> return (Just (s, t, l))
-
--- pops an item, and pushes the type of this item as a symbol, or in the case of quotes, as a quote
-qtypelang = qfunc "type" [Any] func
-  where func (x : s, t, l) = return $ Just (qtypeLiteral (qtype x) : s, t, l)
-
--- pops a string and prints it without a linebreak
-qprint = qfunc "print" [Str] func
-  where func ((QStr x) : s, t, l) = putStr x >> return (Just (s, t, l))
+-- pops an item, and pushes the type of this item as a symbol
+qtypei (x : s, t, l) = (qtypeLiteral (qtype x) : s, t, l)
 
 -- pops an item and pushes its string representation using serializeQ
-qshow = qfunc "show" [Any] func
-  where func (x : s, t, l) = return $ Just ((QStr (serializeQ x)) : s, t, l)
+qshow (x : s, t, l) = ((QStr (serializeQ x)) : s, t, l)
 
 -- pops a string and pushes a quote containing a string for each character in the string
-qchars = qfunc "chars" [Str] func
-  where func ((QStr xs) : s, t, l) = return $ Just (QQuote Seq.empty ((Seq.fromList . map (QStr . (\c -> [c]))) xs) : s, t, l)
+qchars ((QStr xs) : s, t, l) = (QQuote Seq.empty ((Seq.fromList . map (QStr . (\c -> [c]))) xs) : s, t, l)
 
 -- pops two strings and concats them
-qweld = qfunc "weld" [Str, Str] func
-  where func ((QStr a) : (QStr b) : s, t, l) = return $ Just ((QStr (b ++ a)) : s, t, l)
+qweld ((QStr a) : (QStr b) : s, t, l) = ((QStr (b ++ a)) : s, t, l)
 
 -- calls a quote
-qcall = qfunc "call" [Quote] func
-  where func (x : s, t, l) = (callQuote x (s, t, l))
+qcall = (x : s, t, l) = (callQuote x (s, t, l))
 
 -- calls the first quote in a list of quotes that has a matching pattern
-qmatch = qfunc "match" [Quote] func
-  where func ((QQuote _ quotes) : s, t, l) = callQuote (tryQuotes quotes s) (s, t, l)
-        tryQuotes (viewl -> Seq.EmptyL) _ = QQuote Seq.empty Seq.empty
-        tryQuotes (viewl -> (QQuote p q) :< sq) s = case patternMatch p s of
-          Just bindings -> (QQuote p q)
-          Nothing -> tryQuotes sq s
-
-
--- these are the scary non-pure functions:
-
--- pops a string and loads the file with this filename, then pushes back the contents of the file as a string
-qload = qfunc "load" [Str] func
-  where func ((QStr filename) : s, t, l) = do
-          read_str <- try (readFile filename) :: IO (Either SomeException String)
-          let stack_top = case read_str of {
-            Left _ -> [QSym "not-ok"];
-            Right s -> [QSym "ok", QStr s]; }
-          return . Just $ (stack_top ++ s, t, l)
-
--- pops two strings, uses the first as a filename to save as and the second as the file contents
-qwrite = qfunc "write" [Str, Str] func
-  where func ((QStr filename) : (QStr toWrite) : s, t, l) = do
-          wrote <- try (writeFile filename toWrite) :: IO (Either SomeException ())
-          let stack_top = case wrote of {
-            Left _ -> [QSym "not-ok"];
-            Right _ -> [QSym "ok"]; }
-          return . Just $ (stack_top ++ s, t, l)
-
--- pops a string and runs it as a shell command, pushes the output of the command as a string
-qcmd = qfunc "cmd" [Str] func
-  where func ((QStr cmd) : s, t, l) = do
-          result <- try (System.Process.readCreateProcess (System.Process.shell cmd) "") :: IO (Either SomeException String)
-          let stack_top = case result of {
-            Left _ -> [QSym "not-ok"];
-            Right s -> [QSym "ok", QStr s]; }
-          return . Just $ (stack_top ++ s, t, l)
+qmatch ((QQuote _ quotes) : s, t, l) = callQuote (tryQuotes quotes s) (s, t, l)
+  tryQuotes (viewl -> Seq.EmptyL) _ = QQuote Seq.empty Seq.empty
+  tryQuotes (viewl -> (QQuote p q) :< sq) s = case patternMatch p s of
+    Just bindings -> (QQuote p q)
+    Nothing -> tryQuotes sq s
 
 -- pops a symbol and quote. binds the symbol to the quote as a function in the vm
-qdef = qfunc "def" [Quote, Sym] func
-  where func ((QSym x) : y : s, t, l) = return $ Just (s, t, Map.insert x y l)
+qdef ((QSym x) : y : s, t, l) = (s, t, Map.insert x y l)
+
+
+-- Scary Impure Functions:
+
+-- pops a string and prints it without a linebreak
+qprint ((QStr x) : s, t, l) = putStr x >> return (Just (s, t, l))
+
+-- prints the contents of the entire stack with a linebreak
+qprintall (s, t, l) = (putStrLn . intercalate " " . map serializeQ . reverse) s >> return (Just (s, t, l))
+
+-- pops a string and loads the file with this filename, then pushes back the contents of the file as a string
+qload ((QStr filename) : s, t, l) = do
+  read_str <- try (readFile filename) :: IO (Either SomeException String)
+  let stack_top = case read_str of {
+    Left _ -> [QSym "not-ok"];
+    Right s -> [QSym "ok", QStr s]; }
+  return . Just $ (stack_top ++ s, t, l)
+
+-- pops two strings, uses the first as a filename to save as and the second as the file contents
+qwrite ((QStr filename) : (QStr toWrite) : s, t, l) = do
+  wrote <- try (writeFile filename toWrite) :: IO (Either SomeException ())
+  let stack_top = case wrote of {
+    Left _ -> [QSym "not-ok"];
+    Right _ -> [QSym "ok"]; }
+  return . Just $ (stack_top ++ s, t, l)
+
+-- pops a string and runs it as a shell command, pushes the output of the command as a string
+qcmd ((QStr cmd) : s, t, l) = do
+  result <- try (System.Process.readCreateProcess (System.Process.shell cmd) "") :: IO (Either SomeException String)
+  let stack_top = case result of {
+    Left _ -> [QSym "not-ok"];
+    Right s -> [QSym "ok", QStr s]; }
+  return . Just $ (stack_top ++ s, t, l)
 
 -- evaluates a string of quark code by parsing it and concating these new values to the vm's token list
-qeval = qfunc "eval" [Str] func
-  where func ((QStr x) : s, t, l) = do {
-    evaled <- runQuark True (return (s, t, l)) x;
-    case evaled of
-      Nothing -> return $ Just ((QSym "not-ok") : s, t, l)
-      Just (s', t', l') -> return $ Just ((QSym "ok") : s', t', l'); }
+qeval ((QStr x) : s, t, l) = do {
+  evaled <- runQuark True (return (s, t, l)) x;
+  case evaled of
+    Nothing -> return $ Just ((QSym "not-ok") : s, t, l)
+    Just (s', t', l') -> return $ Just ((QSym "ok") : s', t', l'); }
 
 -- exits the interpreter (only if in script mode)
-qexit = qfunc "exit" [] func
-  where func _ = return Nothing
+qexit _ = return Nothing
 
 
 --- Interpreter ---
