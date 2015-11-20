@@ -38,6 +38,14 @@ getTokens (_, t, _) = t
 getLib :: QVM -> QLib
 getLib (_, _, l) = l
 
+-- stack manipulation functions
+
+dropVM :: Int -> QVM -> QVM
+dropVM n (s, t, l) = (drop n s, t, l)
+
+pushVM :: QItem -> QVM -> QVM
+pushVM x (s, t, l) = (x : s, t, l)
+
 -- interpreter state
 type IState = IO (Maybe QVM)
 
@@ -48,18 +56,23 @@ serializeQ (QNum x) = if (ceiling x) == (floor x) then (show . floor) x else sho
 serializeQ (QAtom x) = x
 serializeQ (QSym x) = ':' : x
 serializeQ (QStr x) = "\"" ++ x ++ "\""
-serializeQ (QQuote args vals _) = "[" ++ s_args ++ s_vals ++ "]"
-  where join_with_spaces sq = case (foldl (++) "" $ fmap ((" " ++) . serializeQ) sq) of
+serializeQ (QQuote args vals vars) = "[" ++ s_args ++ s_vals ++ "]"
+  where join_with_spaces sq = case (foldl (++) "" $ fmap ((" " ++) . serializeInnerQ vars) sq) of
           [] -> ""
           xs -> xs ++ " "
         s_args = if Seq.null args then "" else join_with_spaces args ++ "|"
         s_vals = join_with_spaces vals
 
+serializeInnerQ :: QLib -> QItem -> String
+serializeInnerQ vars (QAtom v) = case Map.lookup v vars of { Just x -> serializeQ x; Nothing -> v; }
+serializeInnerQ vars (QQuote args vals vars2) = serializeQ $ QQuote args vals (Map.union vars2 vars)
+serializeInnerQ _ x = serializeQ x
+
 -- used in REPL
 -- if a quote pattern/body has more than 20 items it is cut-off and "..." is appended
 safeSerializeQ :: QItem -> String
-safeSerializeQ (QQuote args vals _) = "[" ++ s_args ++ s_vals ++ "]"
-  where join_with_spaces sq = case (foldl (++) "" $ fmap ((" " ++) . serializeQ) (Seq.take 20 sq)) of
+safeSerializeQ (QQuote args vals vars) = "[" ++ s_args ++ s_vals ++ "]"
+  where join_with_spaces sq = case (foldl (++) "" $ fmap ((" " ++) . serializeInnerQ vars) (Seq.take 20 sq)) of
           [] -> ""
           xs -> xs ++ " "
         s_args = if Seq.null args then "" else join_with_spaces args ++ (if Seq.length args > 20 then "..." else "") ++ "|"

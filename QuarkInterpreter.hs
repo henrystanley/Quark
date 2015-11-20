@@ -20,13 +20,13 @@ import Control.Exception
 -- main evaluation function, takes a quark vm and (assuming there aren't any errors) returns its reduction
 -- if the top item is a fuction, run it
 -- otherwise, push the top item to the data stack
-eval :: QVM -> IO (Maybe QVM)
+eval :: QVM -> IState
 eval (stack, (viewl -> (QAtom a) :< sq), lib) = (getFunc lib a) (stack, sq, lib)
 eval (stack, (viewl -> x :< sq), lib) =  return . Just $ (x : stack, sq, lib)
 
 -- tries to retrieve a core or runtime defined function
 -- if this fails, returns a `No such function: ` yeilding function
-getFunc :: QLib -> String -> (QVM -> IO (Maybe QVM))
+getFunc :: QLib -> String -> (QVM -> IState)
 getFunc lib fname = case coreFunc fname of
   Just f -> f
   Nothing -> case libFunc fname lib of
@@ -34,16 +34,25 @@ getFunc lib fname = case coreFunc fname of
     Nothing -> (\_ -> raiseError ("No such function: " ++ fname))
 
 -- gets a runtime defined function, if no such function exists returns `Nothing`
-libFunc :: String -> QLib -> Maybe (QVM -> IO (Maybe QVM))
+libFunc :: String -> QLib -> Maybe (QVM -> IState)
 libFunc var lib = Map.lookup var lib >>= (\f -> Just (\vm -> callQuote f vm))
 
 -- this is the function responsible for the behavior of the `call` quark function
 -- it is also used in `match` if a matching quote is found
-callQuote :: QItem -> QVM -> IO (Maybe QVM)
-callQuote (QQuote args values vars) (stack, tokens, lib) = case patternMatch args stack of
-  Just bindings -> return . Just $ (drop (Seq.length args) stack, (libSub values bindings) >< tokens, lib)
-  Nothing -> return $ Just (QSym "nil" : (drop (Seq.length args) stack), tokens, lib)
-callQuote x (s, t, l) = raiseError "Tried to call a value that wasn't a quote"
+callQuote :: QItem -> QVM -> IState
+callQuote (QQuote args values v) vm = return . Just $ case patternMatch args (getStack vm) of
+  Just bindings -> expandQuote values (Map.union bindings v) vm'
+  Nothing -> pushVM (QSym "nil") vm'
+  where vm' = dropVM (Seq.length args) vm
+callQuote _ _ = raiseError "Tried to call a value that wasn't a quote"
+
+expandQuote :: QProg -> QLib -> QVM -> QVM
+expandQuote (viewr -> Seq.EmptyR) _ vm = vm
+expandQuote (viewr -> sq :> (QAtom v)) vars (s, t, l) = expandQuote sq vars $ (s, v' <| t, l)
+  where v' = case Map.lookup v vars of { Just x -> x; Nothing -> QAtom v; }
+expandQuote (viewr -> sq :> (QQuote p b v)) vars (s, t, l) = expandQuote sq vars $ (s, q' <| t, l)
+  where q' = QQuote p b (Map.union v vars)
+expandQuote (viewr -> sq :> x) vars (s, t, l) = expandQuote sq vars $ (s, x <| t, l)
 
 -- checks to make sure the items a quote is being applied to match the quotes pattern
 -- if these items do match, it returns the variable bindings for the quote body
@@ -55,13 +64,6 @@ patternMatch pattern stack = qmatch Map.empty pattern stack
           then if (l Map.! x) == y then qmatch l sq ys else Nothing
           else qmatch (Map.insert x y l) sq ys
         qmatch l (viewr -> sq :> x) (y : ys) = if x == y then qmatch l sq ys else Nothing
-
--- before a quote body is evaluated, this function replaces variables with their binding from the quote pattern
-libSub :: Seq.Seq QItem -> QLib -> Seq.Seq QItem
-libSub (viewl -> Seq.EmptyL) _ = Seq.empty
-libSub (viewl -> (QAtom x) :< sq) l = (if Map.member x l then (l Map.! x) else (QAtom x)) <| (libSub sq l)
-libSub (viewl -> (QQuote args items _) :< sq) l = QQuote (libSub args l) (libSub items l) Map.empty <| (libSub sq l)
-libSub (viewl -> x :< sq) l = x <| (libSub sq l)
 
 -- concat items to a quark vm's token stack
 fillQVM :: QVM -> QProg -> QVM
