@@ -41,7 +41,7 @@ libFunc var lib = Map.lookup var lib >>= (\f -> Just (\vm -> callQuote f vm))
 -- it is also used in `match` if a matching quote is found
 callQuote :: QItem -> QVM -> IState
 callQuote (QQuote args values v) vm = return . Just $ case patternMatch args (getStack vm) of
-  Just bindings -> expandQuote values (Map.union bindings v) vm'
+  Just bindings -> expandQuote values (Map.union v bindings) vm'
   Nothing -> pushVM (QSym "nil") vm'
   where vm' = dropVM (Seq.length args) vm
 callQuote _ _ = raiseError "Tried to call a value that wasn't a quote"
@@ -63,6 +63,7 @@ patternMatch pattern stack = qmatch Map.empty pattern stack
         qmatch l (viewr -> sq :> (QAtom x)) (y : ys) = if Map.member x l
           then if (l Map.! x) == y then qmatch l sq ys else Nothing
           else qmatch (Map.insert x y l) sq ys
+        qmatch l (viewr -> sq :> (QQuote p b _)) ((QQuote p2 b2 _) : ys) = if (p == p2) && (b == b2) then qmatch l sq ys else Nothing
         qmatch l (viewr -> sq :> x) (y : ys) = if x == y then qmatch l sq ys else Nothing
 
 -- concat items to a quark vm's token stack
