@@ -6,7 +6,7 @@ import qualified Data.Sequence as Seq
 --- Quark Types ---
 
 data QItem = QNum Double -- Number
-           | QQuote (Seq.Seq QItem) (Seq.Seq QItem) -- Quote
+           | QQuote (Seq.Seq QItem) (Seq.Seq QItem) QLib -- Quote
            | QAtom String -- Atom (function name or variable)
            | QSym String -- Symbol
            | QStr String -- String
@@ -48,7 +48,7 @@ serializeQ (QNum x) = if (ceiling x) == (floor x) then (show . floor) x else sho
 serializeQ (QAtom x) = x
 serializeQ (QSym x) = ':' : x
 serializeQ (QStr x) = "\"" ++ x ++ "\""
-serializeQ (QQuote args vals) = "[" ++ s_args ++ s_vals ++ "]"
+serializeQ (QQuote args vals _) = "[" ++ s_args ++ s_vals ++ "]"
   where join_with_spaces sq = case (foldl (++) "" $ fmap ((" " ++) . serializeQ) sq) of
           [] -> ""
           xs -> xs ++ " "
@@ -58,7 +58,7 @@ serializeQ (QQuote args vals) = "[" ++ s_args ++ s_vals ++ "]"
 -- used in REPL
 -- if a quote pattern/body has more than 20 items it is cut-off and "..." is appended
 safeSerializeQ :: QItem -> String
-safeSerializeQ (QQuote args vals) = "[" ++ s_args ++ s_vals ++ "]"
+safeSerializeQ (QQuote args vals _) = "[" ++ s_args ++ s_vals ++ "]"
   where join_with_spaces sq = case (foldl (++) "" $ fmap ((" " ++) . serializeQ) (Seq.take 20 sq)) of
           [] -> ""
           xs -> xs ++ " "
@@ -88,7 +88,7 @@ qtype (QNum _) = Num
 qtype (QAtom _) = Atom
 qtype (QSym _) = Sym
 qtype (QStr _) = Str
-qtype (QQuote _ _) = Quote
+qtype (QQuote _ _ _) = Quote
 
 -- converts the type of a quark item into a quark symbol
 qtypeLiteral :: QType -> QItem

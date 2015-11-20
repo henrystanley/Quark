@@ -40,7 +40,7 @@ libFunc var lib = Map.lookup var lib >>= (\f -> Just (\vm -> callQuote f vm))
 -- this is the function responsible for the behavior of the `call` quark function
 -- it is also used in `match` if a matching quote is found
 callQuote :: QItem -> QVM -> IO (Maybe QVM)
-callQuote (QQuote args values) (stack, tokens, lib) = case patternMatch args stack of
+callQuote (QQuote args values vars) (stack, tokens, lib) = case patternMatch args stack of
   Just bindings -> return . Just $ (drop (Seq.length args) stack, (libSub values bindings) >< tokens, lib)
   Nothing -> return $ Just (QSym "nil" : (drop (Seq.length args) stack), tokens, lib)
 callQuote x (s, t, l) = raiseError "Tried to call a value that wasn't a quote"
@@ -60,7 +60,7 @@ patternMatch pattern stack = qmatch Map.empty pattern stack
 libSub :: Seq.Seq QItem -> QLib -> Seq.Seq QItem
 libSub (viewl -> Seq.EmptyL) _ = Seq.empty
 libSub (viewl -> (QAtom x) :< sq) l = (if Map.member x l then (l Map.! x) else (QAtom x)) <| (libSub sq l)
-libSub (viewl -> (QQuote args items) :< sq) l = QQuote (libSub args l) (libSub items l) <| (libSub sq l)
+libSub (viewl -> (QQuote args items _) :< sq) l = QQuote (libSub args l) (libSub items l) Map.empty <| (libSub sq l)
 libSub (viewl -> x :< sq) l = x <| (libSub sq l)
 
 -- concat items to a quark vm's token stack
@@ -152,17 +152,17 @@ qNumFunc name f = qPureFunc name [Num, Num] f'
 qlessthan ((QNum x) : (QNum y) : s, t, l) = (QSym (if x < y then "true" else "false") : s, t, l)
 
 -- pushes an item into a quote body
-qpush (x : (QQuote a sq) : s, t, l) = ((QQuote a (sq |> x)) : s, t, l)
+qpush (x : (QQuote a sq v) : s, t, l) = ((QQuote a (sq |> x) v) : s, t, l)
 
 -- pops an item from a quote body
-qpop ((QQuote a (viewr -> sq :> x)) : s, t, l) = (x : (QQuote a sq) : s, t, l)
-qpop ((QQuote a (viewr -> EmptyR)) : s, t, l) = ((QQuote a Seq.empty) : s, t, l)
+qpop ((QQuote a (viewr -> sq :> x) v) : s, t, l) = (x : (QQuote a sq v) : s, t, l)
+qpop ((QQuote a (viewr -> EmptyR) v) : s, t, l) = ((QQuote a Seq.empty v) : s, t, l)
 
 -- makes the body of the second quote the pattern of the first quote
-qunite ((QQuote _ xs) : (QQuote _ ys) : s, t, l) = ((QQuote ys xs) : s, t, l)
+qunite ((QQuote _ xs v) : (QQuote _ ys _) : s, t, l) = ((QQuote ys xs v) : s, t, l)
 
 -- splits a quote into two new quotes, whose bodies contain the pattern and body of the original quote
-qseparate ((QQuote ys xs) : s, t, l) = ((QQuote Seq.empty xs) : (QQuote Seq.empty ys) : s, t, l)
+qseparate ((QQuote ys xs v) : s, t, l) = ((QQuote Seq.empty xs v) : (QQuote Seq.empty ys Map.empty) : s, t, l)
 
 -- pops an item, and pushes the type of this item as a symbol
 qtypei (x : s, t, l) = (qtypeLiteral (qtype x) : s, t, l)
@@ -171,7 +171,7 @@ qtypei (x : s, t, l) = (qtypeLiteral (qtype x) : s, t, l)
 qshow (x : s, t, l) = ((QStr (serializeQ x)) : s, t, l)
 
 -- pops a string and pushes a quote containing a string for each character in the string
-qchars ((QStr xs) : s, t, l) = (QQuote Seq.empty ((Seq.fromList . map (QStr . (\c -> [c]))) xs) : s, t, l)
+qchars ((QStr xs) : s, t, l) = (QQuote Seq.empty ((Seq.fromList . map (QStr . (\c -> [c]))) xs) Map.empty : s, t, l)
 
 -- pops two strings and concats them
 qweld ((QStr a) : (QStr b) : s, t, l) = ((QStr (b ++ a)) : s, t, l)
@@ -183,13 +183,13 @@ qdef ((QSym x) : y : s, t, l) = (s, t, Map.insert x y l)
 -- Scary Impure Functions:
 
 -- calls a quote
-qcall (x : s, t, l) = (callQuote x (s, t, l))
+qcall (x : s, t, l) = callQuote x (s, t, l)
 
 -- calls the first quote in a list of quotes that has a matching pattern
-qmatch ((QQuote _ quotes) : s, t, l) = callQuote (tryQuotes quotes s) (s, t, l)
-  where tryQuotes (viewl -> Seq.EmptyL) _ = QQuote Seq.empty Seq.empty
-        tryQuotes (viewl -> (QQuote p q) :< sq) s = case patternMatch p s of
-          Just bindings -> (QQuote p q)
+qmatch ((QQuote _ quotes _) : s, t, l) = callQuote (tryQuotes quotes s) (s, t, l)
+  where tryQuotes (viewl -> Seq.EmptyL) _ = QQuote Seq.empty Seq.empty Map.empty
+        tryQuotes (viewl -> (QQuote p q v) :< sq) s = case patternMatch p s of
+          Just bindings -> (QQuote p q v)
           Nothing -> tryQuotes sq s
 
 -- pops a string and prints it without a linebreak
