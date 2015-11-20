@@ -77,43 +77,37 @@ emptyQVM = ([], Seq.empty, Map.empty)
 
 --- Core Function Utils ---
 
--- checks if a function is a core function
-isCoreFunc :: FuncName -> Bool
-isCoreFunc f = elem f [ "+", "*", "/", "<", "<<",
-                      ">>", "@+", "@-", ".", "print",
-                      "show", "chars", "weld", "type",
-                      "load", "write", "cmd", "call",
-                      "match", "def", "eval", "exit" ]
 
 -- core function dispatch
 coreFunc :: FuncName -> Maybe (QVM -> IState)
-coreFunc s = if isCoreFunc s then Just $ cf s else Nothing
+coreFunc = cf
   where
     -- numeric functions
-    cf "+" = qNumFunc "+" (+)
-    cf "*" = qNumFunc "*" (*)
-    cf "/" = qNumFunc "/" (/)
+    cf "+" = Just $ qNumFunc "+" (+)
+    cf "*" = Just $ qNumFunc "*" (*)
+    cf "/" = Just $ qNumFunc "/" (/)
     -- pure functions
-    cf "<" = qPureFunc "<" [Num, Num] qlessthan
-    cf "<<" = qPureFunc "<<" [Quote, Any] qpush
-    cf ">>" = qPureFunc ">>" [Quote] qpop
-    cf "@+" = qPureFunc "@+" [Quote, Quote] qunite
-    cf "@-" = qPureFunc "@-" [Quote] qseparate
-    cf "show" = qPureFunc "show" [Any] qshow
-    cf "chars" = qPureFunc "chars" [Str] qchars
-    cf "weld" = qPureFunc "weld" [Str, Str] qweld
-    cf "type" = qPureFunc "type" [Any] qtypei
-    cf "def" = qPureFunc "def" [Quote, Sym] qdef
+    cf "<" = Just $ qPureFunc "<" [Num, Num] qlessthan
+    cf "<<" = Just $ qPureFunc "<<" [Quote, Any] qpush
+    cf ">>" = Just $ qPureFunc ">>" [Quote] qpop
+    cf "@+" = Just $ qPureFunc "@+" [Quote, Quote] qunite
+    cf "@-" = Just $ qPureFunc "@-" [Quote] qseparate
+    cf "show" = Just $ qPureFunc "show" [Any] qshow
+    cf "chars" = Just $ qPureFunc "chars" [Str] qchars
+    cf "weld" = Just $ qPureFunc "weld" [Str, Str] qweld
+    cf "type" = Just $ qPureFunc "type" [Any] qtypei
+    cf "def" = Just $ qPureFunc "def" [Quote, Sym] qdef
     -- impure functions
-    cf "call" = qFunc "call" [Quote] qcall
-    cf "match" = qFunc "match" [Quote] qmatch
-    cf "." = qFunc "." [] qprintstack
-    cf "load" = qFunc "load" [Str] qload
-    cf "write" = qFunc "write" [Str, Str] qwrite
-    cf "cmd" = qFunc "cmd" [Str] qcmd
-    cf "print" = qFunc "print" [Str] qprint
-    cf "eval" = qFunc "eval" [Str] qevali
-    cf "exit" = qFunc "exit" [] qexit
+    cf "call" = Just $ qFunc "call" [Quote] qcall
+    cf "match" = Just $ qFunc "match" [Quote] qmatch
+    cf "." = Just $ qFunc "." [] qprintstack
+    cf "load" = Just $ qFunc "load" [Str] qload
+    cf "write" = Just $ qFunc "write" [Str, Str] qwrite
+    cf "cmd" = Just $ qFunc "cmd" [Str] qcmd
+    cf "print" = Just $ qFunc "print" [Str] qprint
+    cf "eval" = Just $ qFunc "eval" [Str] qevali
+    cf "exit" = Just $ qFunc "exit" [] qexit
+    cf x = Nothing
 
 
 -- Error Builders
