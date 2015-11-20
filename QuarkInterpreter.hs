@@ -33,33 +33,6 @@ getFunc lib fname = case coreFunc fname of
     Just f -> f
     Nothing -> (\_ -> raiseError ("No such function: " ++ fname))
 
--- map of strings to the core quark functions, returns `Nothing` if the string is not a core function
--- this is ugly, but I believe it is the fastest way to implement this kind of lookup
-coreFunc :: String -> Maybe (QVM -> IO (Maybe QVM))
-coreFunc "+" = Just qadd
-coreFunc "*" = Just qmult
-coreFunc "/" = Just qdiv
-coreFunc "<" = Just qlessthan
-coreFunc "<<" = Just qpush
-coreFunc ">>" = Just qpop
-coreFunc "@+" = Just qquotejoin
-coreFunc "@-" = Just qquotesplit
-coreFunc "." = Just qprintall
-coreFunc "print" = Just qprint
-coreFunc "show" = Just qshow
-coreFunc "chars" = Just qchars
-coreFunc "weld" = Just qweld
-coreFunc "type" = Just qtypelang
-coreFunc "load" = Just qload
-coreFunc "write" = Just qwrite
-coreFunc "cmd" = Just qcmd
-coreFunc "call" = Just qcall
-coreFunc "match" = Just qmatch
-coreFunc "def" = Just qdef
-coreFunc "eval" = Just qeval
-coreFunc "exit" = Just qexit
-coreFunc _ = Nothing
-
 -- gets a runtime defined function, if no such function exists returns `Nothing`
 libFunc :: String -> QLib -> Maybe (QVM -> IO (Maybe QVM))
 libFunc var lib = Map.lookup var lib >>= (\f -> Just (\vm -> callQuote f vm))
@@ -103,22 +76,20 @@ emptyQVM = ([], Seq.empty, Map.empty)
 
 -- checks if a function is a core function
 isCoreFunc :: FuncName -> Bool
-isCoreFunc f = elem f coreFuncNames
-  where coreFuncNames = [
-    "+", "*", "/", "<", "<<",
-    ">>", "@+", "@-", ".", "print",
-    "show", "chars", "weld", "type",
-    "load", "write", "cmd", "call",
-    "match", "def", "eval", "exit"]
+isCoreFunc f = elem f [ "+", "*", "/", "<", "<<",
+                      ">>", "@+", "@-", ".", "print",
+                      "show", "chars", "weld", "type",
+                      "load", "write", "cmd", "call",
+                      "match", "def", "eval", "exit" ]
 
 -- core function dispatch
 coreFunc :: FuncName -> Maybe (QVM -> IState)
-coreFunc s = if isCoreFunc then Just $ cf s else Nothing
+coreFunc s = if isCoreFunc s then Just $ cf s else Nothing
   where
     -- numeric functions
-    cf "+" = qNumFunc (+)
-    cf "*" = qNumFunc (*)
-    cf "/" = qNumFunc (/)
+    cf "+" = qNumFunc "+" (+)
+    cf "*" = qNumFunc "*" (*)
+    cf "/" = qNumFunc "/" (/)
     -- pure functions
     cf "<" = qPureFunc "<" [Num, Num] qlessthan
     cf "<<" = qPureFunc "<<" [Quote, Any] qpush
@@ -129,10 +100,10 @@ coreFunc s = if isCoreFunc then Just $ cf s else Nothing
     cf "chars" = qPureFunc "chars" [Str] qchars
     cf "weld" = qPureFunc "weld" [Str, Str] qweld
     cf "type" = qPureFunc "type" [Any] qtypei
-    cf "call" = qPureFunc "call" [Quote] qcall
-    cf "match" = qPureFunc "match" [Quote] qmatch
     cf "def" = qPureFunc "def" [Quote, Sym] qdef
     -- impure functions
+    cf "call" = qFunc "call" [Quote] qcall
+    cf "match" = qFunc "match" [Quote] qmatch
     cf "." = qFunc "." [] qprintstack
     cf "load" = qFunc "load" [Str] qload
     cf "write" = qFunc "write" [Str, Str] qwrite
@@ -191,7 +162,7 @@ qpop ((QQuote a (viewr -> EmptyR)) : s, t, l) = ((QQuote a Seq.empty) : s, t, l)
 qunite ((QQuote _ xs) : (QQuote _ ys) : s, t, l) = ((QQuote ys xs) : s, t, l)
 
 -- splits a quote into two new quotes, whose bodies contain the pattern and body of the original quote
-qseparate ((QQuote ys xs) : s, t, l) = return $ Just ((QQuote Seq.empty xs) : (QQuote Seq.empty ys) : s, t, l)
+qseparate ((QQuote ys xs) : s, t, l) = ((QQuote Seq.empty xs) : (QQuote Seq.empty ys) : s, t, l)
 
 -- pops an item, and pushes the type of this item as a symbol
 qtypei (x : s, t, l) = (qtypeLiteral (qtype x) : s, t, l)
@@ -205,27 +176,27 @@ qchars ((QStr xs) : s, t, l) = (QQuote Seq.empty ((Seq.fromList . map (QStr . (\
 -- pops two strings and concats them
 qweld ((QStr a) : (QStr b) : s, t, l) = ((QStr (b ++ a)) : s, t, l)
 
--- calls a quote
-qcall = (x : s, t, l) = (callQuote x (s, t, l))
-
--- calls the first quote in a list of quotes that has a matching pattern
-qmatch ((QQuote _ quotes) : s, t, l) = callQuote (tryQuotes quotes s) (s, t, l)
-  tryQuotes (viewl -> Seq.EmptyL) _ = QQuote Seq.empty Seq.empty
-  tryQuotes (viewl -> (QQuote p q) :< sq) s = case patternMatch p s of
-    Just bindings -> (QQuote p q)
-    Nothing -> tryQuotes sq s
-
 -- pops a symbol and quote. binds the symbol to the quote as a function in the vm
 qdef ((QSym x) : y : s, t, l) = (s, t, Map.insert x y l)
 
 
 -- Scary Impure Functions:
 
+-- calls a quote
+qcall (x : s, t, l) = (callQuote x (s, t, l))
+
+-- calls the first quote in a list of quotes that has a matching pattern
+qmatch ((QQuote _ quotes) : s, t, l) = callQuote (tryQuotes quotes s) (s, t, l)
+  where tryQuotes (viewl -> Seq.EmptyL) _ = QQuote Seq.empty Seq.empty
+        tryQuotes (viewl -> (QQuote p q) :< sq) s = case patternMatch p s of
+          Just bindings -> (QQuote p q)
+          Nothing -> tryQuotes sq s
+
 -- pops a string and prints it without a linebreak
 qprint ((QStr x) : s, t, l) = putStr x >> return (Just (s, t, l))
 
 -- prints the contents of the entire stack with a linebreak
-qprintall (s, t, l) = (putStrLn . intercalate " " . map serializeQ . reverse) s >> return (Just (s, t, l))
+qprintstack (s, t, l) = (putStrLn . intercalate " " . map serializeQ . reverse) s >> return (Just (s, t, l))
 
 -- pops a string and loads the file with this filename, then pushes back the contents of the file as a string
 qload ((QStr filename) : s, t, l) = do
@@ -252,7 +223,7 @@ qcmd ((QStr cmd) : s, t, l) = do
   return . Just $ (stack_top ++ s, t, l)
 
 -- evaluates a string of quark code by parsing it and concating these new values to the vm's token list
-qeval ((QStr x) : s, t, l) = do {
+qevali ((QStr x) : s, t, l) = do {
   evaled <- runQuark True (return (s, t, l)) x;
   case evaled of
     Nothing -> return $ Just ((QSym "not-ok") : s, t, l)
