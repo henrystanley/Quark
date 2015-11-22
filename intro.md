@@ -4,9 +4,9 @@ A Brief (and/or long winded) Introduction to Quark
 
 Hello potential Quark user, before this guide can begin I'd like to run several health warnings by you.
 
-    Do you experience allergic reactions to brackets?
-    Does excessive stack manipulation make you break into a cold sweat?
-    Are you addicted to Lisp and/or Lisp like substances?
+  - Do you experience allergic reactions to brackets?
+  - Does excessive stack manipulation make you break into a cold sweat?
+  - Are you addicted to Lisp and/or Lisp like substances?
 
 If you meet any of these criteria, please close this txt at once.
 With that out of the way, let's continue...
@@ -23,12 +23,12 @@ It does however, try to be as simple, flexible, and obvious as possible.
 Making REPLs in the pond
 ------------------------
 
-Assuming you managed to install Quark onto your IBM PC, PDP-11, or MIT Lisp Machine, let's fire up the repl.
-Quark has two modes of operation, interpreter and repl.
+Assuming you managed to install Quark onto your IBM PC, PDP-11, or MIT Lisp Machine, let's fire up the REPL.
+Quark has two modes of operation, interpreter and REPL.
 To interpret a file, give `quark file-to-run.qrk` a try.
-To start the repl you can just type `quark` without any arguments.
+To start the REPL you can just type `quark` without any arguments.
 Quark automatically loads the prelude (a minimal standard library) when it starts.
-For this tutorial however, we only want the Quark core functions, so start the repl like this:
+For this tutorial however, we only want the Quark core functions, so start the REPL like this:
 
     $ quark --only-core
 
@@ -41,26 +41,24 @@ Why don't we start by pushing some numbers to the stack?
 
     :> 42 6.0 -0.976
 
-There we are...
-Let's check to make sure that worked.
-Here, I'll introduce you to your first quark function: `.`
-There are 22 primitive functions in Quark, and this guide should cover them all.
-The dot function will print the entire stack, and is mainly used for debugging.
+Assuming the REPL didn't explode, it should have echoed the numbers we just entered.
+If this is your first time using a stack based language, allow me to explain what we just did.
+Every action in Quark takes place on the data stack, which is (as you probably guessed) a stack of data.
+When the Quark interpreter receives literal values like the numbers we just entered, it pushes them to the stack.
+After you've entered a bit of Quark code into the REPL, the interpreter will run it, then spit back the contents of the stack.
 
-    :> .
-    42.0 6.0 -0.976
-
+Now, back onto the subject of literals.
 Numbers in Quark are all Doubles.
 This simplifies things, and hopefully provides enough accuracy for most stuff.
 
-Now lets add some strings:
+Lets add some strings:
 
     :> "quarklang" 'single quotes work too...' 'chunky bacon'
 
 Strings can be written with either single or double quotes.
 I should point out here as well, that quark doesn't really care about line breaks.
-Strings can span multiple lines if necessary, however the repl doesn't really allow for this.
-Here's the last, slightly more exotic, type:
+Strings can span multiple lines if necessary, however the REPL doesn't really allow for this.
+Here's the last, slightly more exotic, data type:
 
     :> :thing :Cows :the_color_blue
 
@@ -72,50 +70,67 @@ Let's Get Functional!
 ---------------------
 
 Functions are pretty simple too.
-As I mentioned before, there are 22 built in functions.
-Obviously though, you can make your own.
+Quark makes a point of implementing by default only what is absolutely necessary.
+For this reason Quark contains only 22 built in functions.
+However, composing these core functions allows us to do all kind of neat things beyond Quark's basic functionality.
 
-Now might be good time (if not a little late) to explain Quark's evaluation model.
-The basic Haskell Quark implementation represents the state of the environment with a tuple of three things.
-These three items are: `Stack`, `Tokens`, and `Lib`.
-`Stack` is obviously the data stack we've been pushing to this whole time.
-`Tokens` is a list of unevaluated Quark items.
-`Lib` is a simple map of Quark atoms to Quark quotes.
-Each step of the evaluation the interpreter pops the first item off the `Tokens` list.
-If this item is a function, the interpreter looks it up in `Lib`, otherwise it pushes the item to `Stack`.
+Quark belongs to a nifty set of functional languages, known as concatenative languages.
+What this means is that Quark functions compose by default.
+While in python one might write: `add(sub(5, 6), 9)` in Quark we can write: `5 6 sub 9 add`.
+This kind of backwards function application (know as postfix notation) makes for some really clean code.
+Being concatenative, also means that every individual part of a Quark program, is itself a program (even literals).
 
-I mentioned quotes above in the definition for `Lib`, but what are quotes?
-Quotes are just lists of Quark items, observe:
+Enough with the rambling, on to functions!
 
-    :> [ 4 'fifty' :orange ]
+Here is the first of our 22, `print`:
 
-This is a simple quote of three items.
-When called it will push `4` then `'fifty'` then `:orange` to the stack.
-(Actually technically, it will push them to the `Tokens` list, which will then take each item and push it to the stack...)
-However, since we haven't called this quote, it will just sit at top of the stack, looking sad and forlorned.
+    :> 'Hello, world!' print
+
+`print` takes a string off the data stack and prints it (pretty innovative).
+
+
+You can Quote me on that...
+---------------------------
+
+There's just one more topic we have to address before we can dive into the deep end of the pool, Quotes.
+Quotes are just lists of Quark literals or functions enclosed in brackets and delimited by whitespace, observe:
+
+    :> [ 4 'fifty' print :orange ]
+
+Items in a quote are frozen, meaning they won't execute until they're out of the quote.
+Quotes serve two purposes:
+
+  1. As a general purpose data structure, much like lists in LISP
+  2. They allow us to compose functions, without applying them
+
+In regards to point two, allow me to introduce the `call` function.
+
+    :> [ "I'm in a quote..." print ] call
+
+`call` takes a quote and unquotes it, by applying the quote's internals to the stack.
+This means that `4` is the same as `[ 4 ] call`.
 
 
 Pattern Matching, because if statements are for chumps...
 ---------------------------------------------------------
 
-Quotes have one more property which is responsible for a lot of Quark's flavor.
+Quotes have one more property which is responsible for a lot of Quark's flavor, patterns.
 Anyone who has used a functional programming language like Erlang, Haskell, or OCaml is probably familiar with pattern matching.
-Before I can ramble anymore, let's look at an example of this.
+Quark fuses pattern matching with quotes, which let's us do all kinds of cool stuff.
+Let's look at an example of this.
 
     :> [ 4 | :is_four ]
 
-This rather useless quote consists of a pattern of 4 separated by a '|' character from it's value of :is_four
-When a pattern equipped quote is applied, it completes 3 steps:
+Patterns are little sub-lists written at the beginning of quotes, and separated from the quote body with a '|' character.
+In this case our quote has a pattern of `4`.
+When a pattern equipped quote is called, it completes 3 steps:
 
   1. Pop n items off the stack, where n is the length of the pattern (in the case of an empty pattern this is zero)
   2. Check if these popped items are equal to the items in the pattern (if the pattern item is a variable any value will match)
   3. If they don't match push the symbol :nil to the stack and put all the items back,
-     otherwise if they do, replace bound variables in the quote body and call the quote as explained above
+     otherwise if they do, Replace bound variables in the quote body and call the quote as explained above
 
-Let's try this out, but before we do allow me to introduce you to two new functions: `print` and `call`
-`print` takes a string off the stack and prints it, big surprise right...
-`call` takes a quote off the stack and calls it, also fairly obvious.
-Now, on to the example:
+Let's try this out:
 
   :> 6 [ 5 | 'This is a 5' print ] call
 
@@ -128,21 +143,47 @@ Hopefully you can see what just happened:
   1. We popped the string off the stack
   2. Matched it with (and bound it to) the variable x
   3. Replaced the x in the body with 'This will print!'
-  4. Appended the quote body to the Token queue
+  4. Called the quote
 
-This should have printed 'This will print!'.
 Let's do another!
 
     :> :cow 'pig' [ :cow other | 'There is a cow and a ' print other print ] call
 
-Like magic, this quote will print if it is applied to a stack with :cow and another arbitrary value.
-As a side note, I should point out that matching doesn't recursively check data.
+There are just two more quirks to mention.
+
+The first is that matching doesn't recursively check data.
 That means, `[ [ a b ] | a ]`, won't do what you are probably expecting if you have a Haskell background.
-As another example of my point, this expression:
+For instance:
 
-    :> [ :cow :pig ] [ [ :cow a ] | 'there's a cow and something else' ]
+    :> [ :cow :pig ] [ [ :cow a ] | 'there's a cow and something else' ] call
 
-will put :nil on your stack because it only matches literal quote values with :cow and a variable named `a`
+The quote doesn't match because it only matches literal quote values with `:cow` and a variable named `a`.
+
+The second quirk is that pattern matching does identity checking.
+That means this quote won't match:
+
+    :> 4 5 [ x x | :same ] call
+
+This feature allows us to define the equality function (`=`) with pattern matching.
+
+
+Strikeless Matches
+------------------
+
+If `call` is the heart of Quark, then `match` is the brain.
+`match` is like a supped up version of `call` that takes multiple quotes (in the form of one quote holding several).
+It starts trying to match each quote from left to right, and when it finds one that does, it calls it.
+Here's an example:
+
+    :> 4 [[ 5 | :five ] [ 4 | :four ]] match
+
+`match` is also stealthier than `call`.
+When `match` can't find any matching quotes it leaves nothing on the stack, instead of `:nil`.
+
+    :> 3 [[ 5 | :five ] [ 4 | :four ]] match
+
+`match` comes in particularly handy in function definitions, which we'll address next.
+
 
 
 I'm a bit def, you'll have to speak up
@@ -153,41 +194,32 @@ If you've been following these examples your data stack is probably filled with 
 To start, here's a new function: `def`
 `def`, expects a stack of a quote and a symbol, like this:
 
-    :> [ 'apple' ] :push_apple def
+    :> [ 'apple' print ] :print_apple def
 
-`def`, will then create a binding between the variable version of the symbol (in this case: push_apple) and the quote.
-It then sticks this binding in the Lib map, as mentioned in the evaluation section.
-Now to push 'apple' you can do this:
+`def`, will then create a binding between the function denoted by the symbol (in this case: `print_apple`) and the quote.
+Now to print `'apple'` you can do this:
 
-    :> push_apple
+    :> print_apple
 
 Hooray, function definition! (You probably wondered how long it would take us to get here...)
 Now about that messy stack...
 
 If you've ever used Forth or Factor you might be familiar with the function `drop`.
-Quark has no `drop` function by default, but we can make our own:
+Quark has no `drop` function by default, but we can make our own with pattern matching:
 
     :> [ x | ] :drop def
 
 This is precisely how `drop` is defined in the standard library.
 It takes one item, and puts back nothing.
 Still, it will be a bit tedious to type `drop` several dozen times.
-Thus we will utilize another new function: `match`
+Thus we will utilize `match` from the previous chapter:
 
     :> [ [[ x | clear ]] match ] :clear def
 
 We can now type `clear` to destroy the entire stack.
 A bit dangerous, but I think you can handle it.
-Why don't we walk through how `match` works.
 
-`match` takes a quote of other quotes and tries them all until it finds one that matches.
-Take this example:
-
-    :> :cow [[:pig | 'oink'] [:cow | 'moo']] match
-
-After it runs you should have a nice little cow noise on your stack.
-
-We used `match` in the `clear` definition to recursively pop items off the stack until it was empty.
+We use `match` in the `clear` definition to recursively pop items off the stack until it's empty.
 Pretty nifty...
 
 
@@ -201,21 +233,18 @@ Here at Quark Industries we think this behavior is pretty silly.
 That's why we put in an `eval` function, and hope you use it too.
 Check this out:
 
-    :> ":8.0 :cow" eval
-    :> .
-    8.0 :cow :ok
+    :> "8.0 :cow" eval
 
 Have a string containing Quark code?
 Toss it at `eval` and the interpreter will evaluate it!
-By now most programmers will feel rather uneasy about this whole thing, but stick with me.
-`eval` is fairly safe, and as you can see above, it puts :ok on the stack if everything went well.
+By now most programmers will feel rather uneasy about this whole thing, and I admit that `eval` can be dangerous.
+Remember though, that Quark focuses on flexibility and expressiveness over safety.
+`eval` is somewhat safe though, as you can see above, it puts `:ok` on the stack if everything went well.
 If you give it something like this:
 
     :> "[ pls no 39jd.a 3o" eval
-    :> .
-    :not-ok
 
-`eval` will let you know if it can't handle something, instead of crashing the program.
+`eval` will let you know if it can't handle something by pushing `:not-ok`, instead of crashing the program.
 Still, I suppose this might trip it up:
 
     :> "[rec] :rec def rec" eval
@@ -226,28 +255,25 @@ One of the neat consequences of how simple Quark's syntax is, is the incredible 
 So we have `eval` to turn strings into code, but what about turning code into strings?
 Meet, `show`
 
-    :> [ x y | 4 :nimblefish ] show
-    :> .
-    "[ x y | 4.0 :nimblefish ]"
+    :> [ x y | 4 :nimblefish ] show print
 
 `eval` and `show` are basically inverse functions.
 The only catch is that `eval` doesn't just parse, it also calls its argument.
-We could (allthough we haven't) implement `call` like this:
+We could (although we haven't) implement `call` like this:
 
     :> [ show eval ] :call def
 
 I don't know if it's just me, but I think the ability to serialize and interpret arbitrary code is pretty darn cool.
 The implications for metaprogramming are reason enough to justify this slightly dangerous feature.
-As we'll see in a bit, these functions are used in the standard library for things like type conversion.
+For example, these functions are used in the standard library for things like type conversion.
 
 Do note, by the way, that state can be affected by `eval`, but is not captured by `show`.
 By this I mean that you can define functions in `eval`, like this:
 
     :> "['Snail' print] :snail def" eval
-    :> snail
-    Snail
 
 However `show` will never include defined functions, it merely turns the top item of the stack into a string.
+
 
 Utilities
 ---------
@@ -255,42 +281,35 @@ Utilities
 In this section we'll take a quick look at many of the lesser functions in Quark.
 To start us out, let's check out the stuff you can do with quotes:
 
-    :> [ ] 4 << .
-    [ 4.0 ]
-    :> >> .
-    [ ] 4.0
-    :> <@ .
-    [ 4.0 | ]
-    :> @> .
-    [ ] 4.0
+    :> [ ] 4 <<
+    :> >>
 
-Here we have two new sets of functions.
-`<<` and `>>` push and pop items in quote bodies.
-`<@` and `@>` do the same with quote patterns.
+The `<<` and `>>` functions push and pop items into quote bodies.
+
+For dealing with quote patterns, we have `@+` and `@-`
+`@-` splits a quote with a pattern into two quotes with bodies containing the pattern and body of the original quote.
+`@+` does the opposite, by joining two quote's bodies into a single quote with the first as a body and the second as a head.
+
+    :> [ 1 2 3 | :a :b :c ] @-
+    :> @+
 
 Moving on... (by the way, between these examples you might want to clear your stack):
 
     :> 16 4 4 * + .
-    32.0
     :> 2 / .
-    16.0
     :> 17 < .
-    :false
 
 Arithmetic! What wonders lie in store next?
 You may have noticed that Quark doesn't have subtraction by default.
 Quark does however have negative numbers, so subtraction is implemented like this:
 
     :> [ -1 * + ] :- def
-    :> 7 4 - .
-    3.0
+    :> 7 4 -
 
 Now how about string manipulation?
 
-    :> "Tee" " Zeit!" weld .
-    "Tee Zeit!"
-    :> clear "abc" chars .
-    ["a" "b" "c"]
+    :> "Tee" " Zeit!" weld
+    :> "abc" chars
 
 These two functions are the only means of playing with strings in Quark.
 The standard library however, implements many useful function with just `weld` and `chars`.
@@ -307,33 +326,44 @@ For example, there currently isn't a way to do networking, which rules out doing
 In the future I (or somebody more clever) may generalize or tweak these functions, to be more flexible.
 Anyway, here are the two file functions:
 
-    :> 'potato.txt' read .
-    "Potatoes are usually brown."
-    :> " They are also covered in eyes, like a Shoggoth!" weld 'potato_2.txt' write
+    :> 'potato.txt' read
+    :> "Potatoes are covered in eyes, like a Shoggoth!" 'potato_2.txt' write
 
 There you have it, reading files and writing files, with `read` and `write`.
 Not exactly rocket science.
 
 There's also `cmd`:
 
-    :> 'ls ~/shoggoth_pics' cmd .
-    "cutie.png
-    Elder_thing_4.jpg
-    so_many_eyes.svg"
+    :> 'ls ~/shoggoth_pics' cmd
 
 As you can see, it runs a command and puts the output as a string back on the stack.
-This function is blocking, so your program will wait for the command to finish.
+This function is blocking, so your program will wait for the command to finish (and if it never does, you're out of luck).
+
+You may have noticed that all of these function add a `:ok` to your stack, just like `eval`.
+This allows us to check if the operation succeeded.
+If it didn't these functions will return a `:not-ok`.
+
+The REPL prints out the stack by default, but there may be a time when you want to do this manually.
+For that you can use `.` which prints out the entire stack.
+
+    :> 324 :cabbage [ 'meow' ] .
 
 Last, but maybe not least, we have `exit`:
 
-    :> [ [[ :cow | "No Cows!" print exit ] [ x | x ]] match ] :no_cows def
+    :> [ [[ :cow | "No Cows!" print exit ]] match ] :no_cows def
     :> :cow no_cows
-    No Cows!
-    :>
 
-Now if you entered this into the repl, you are no doubt unimpressed, mainly because it didn't exit.
+Now if you entered this into the REPL, you are no doubt unimpressed, mainly because it didn't exit.
 This is because `exit` only exits in interpreter mode.
-In repl mode (because it gracefully handles errors) you'll have to enter `*q` (no whitespace) to exit.
+In REPL mode (because it gracefully handles errors) you'll have to enter `*q` (no whitespace) to exit.
+
+
+"Special" Functions
+-------------------
+
+The Quark interpreter also implements two magic REPL only functions.
+
+As we saw above, we can quit the REPl by entering `*q`.
 
 
 Hindley–Milner!?
