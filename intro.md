@@ -71,7 +71,7 @@ Let's Get Functional!
 
 Functions are pretty simple too.
 Quark makes a point of implementing by default only what is absolutely necessary.
-For this reason Quark contains only 22 built in functions.
+For this reason Quark contains only a small set of built in functions (22 at the moment).
 However, composing these core functions allows us to do all kind of neat things beyond Quark's basic functionality.
 
 Quark belongs to a nifty set of functional languages, known as concatenative languages.
@@ -82,7 +82,7 @@ Being concatenative, also means that every individual part of a Quark program, i
 
 Enough with the rambling, on to functions!
 
-Here is the first of our 22, `print`:
+Here is the first of our built-ins, `print`:
 
     :> 'Hello, world!' print
 
@@ -134,7 +134,7 @@ Let's try this out:
 
   :> 6 [ 5 | 'This is a 5' print ] call
 
-This will (presuming it isn't opposite day) *not* print 'This is a 5', instead as noted above it will put :nil on your stack.
+This will (presuming it isn't opposite day) *not* print 'This is a 5', instead as noted above it will put `:nil` on your stack.
 Now let's do this:
 
     :> 'This will print!' [ x | x print ] call
@@ -149,7 +149,7 @@ Let's do another!
 
     :> :cow 'pig' [ :cow other | 'There is a cow and a ' print other print ] call
 
-There are just two more quirks to mention.
+There are just two more quote quirks to mention.
 
 The first is that matching doesn't recursively check data.
 That means, `[ [ a b ] | a ]`, won't do what you are probably expecting if you have a Haskell background.
@@ -159,7 +159,7 @@ For instance:
 
 The quote doesn't match because it only matches literal quote values with `:cow` and a variable named `a`.
 
-The second quirk is that pattern matching does identity checking.
+The second quirk/feature is that pattern matching does identity checking.
 That means this quote won't match:
 
     :> 4 5 [ x x | :same ] call
@@ -183,7 +183,6 @@ When `match` can't find any matching quotes it leaves nothing on the stack, inst
     :> 3 [[ 5 | :five ] [ 4 | :four ]] match
 
 `match` comes in particularly handy in function definitions, which we'll address next.
-
 
 
 I'm a bit def, you'll have to speak up
@@ -216,11 +215,10 @@ Thus we will utilize `match` from the previous chapter:
 
     :> [ [[ x | clear ]] match ] :clear def
 
-We can now type `clear` to destroy the entire stack.
-A bit dangerous, but I think you can handle it.
-
 We use `match` in the `clear` definition to recursively pop items off the stack until it's empty.
 Pretty nifty...
+We can now type `clear` to destroy the entire stack.
+A bit dangerous, but I think you can handle it.
 
 
 "Luke, use the eval"
@@ -230,21 +228,23 @@ Modern programming languages have a habit of implementing a function called `eva
 They then demand you never use it, unless absolutely necessary.
 
 Here at Quark Industries we think this behavior is pretty silly.
-That's why we put in an `eval` function, and hope you use it too.
+That's why we implemented an `eval` function, and hope you use it too.
 Check this out:
 
     :> "8.0 :cow" eval
 
 Have a string containing Quark code?
 Toss it at `eval` and the interpreter will evaluate it!
-By now most programmers will feel rather uneasy about this whole thing, and I admit that `eval` can be dangerous.
+By now most sane programmers will feel rather uneasy about this whole thing, and I admit that `eval` can be dangerous.
 Remember though, that Quark focuses on flexibility and expressiveness over safety.
-`eval` is somewhat safe though, as you can see above, it puts `:ok` on the stack if everything went well.
-If you give it something like this:
+`eval` is a powerful tool, and as long as you don't do anything too crazy, everything should be fine...
+`eval` is even somewhat safe.
+As you can see above, it puts `:ok` on the stack if everything went well.
+However, if you give it something like this:
 
     :> "[ pls no 39jd.a 3o" eval
 
-`eval` will let you know if it can't handle something by pushing `:not-ok`, instead of crashing the program.
+`eval` will let you know when it can't parse something by pushing `:not-ok`, instead of crashing the program.
 Still, I suppose this might trip it up:
 
     :> "[rec] :rec def rec" eval
@@ -258,14 +258,11 @@ Meet, `show`
     :> [ x y | 4 :nimblefish ] show print
 
 `eval` and `show` are basically inverse functions.
-The only catch is that `eval` doesn't just parse, it also calls its argument.
-We could (although we haven't) implement `call` like this:
-
-    :> [ show eval ] :call def
+The only slight difference is that `eval` doesn't just parse, but also calls its argument.
 
 I don't know if it's just me, but I think the ability to serialize and interpret arbitrary code is pretty darn cool.
 The implications for metaprogramming are reason enough to justify this slightly dangerous feature.
-For example, these functions are used in the standard library for things like type conversion.
+For example, these functions are used very easily for things like type conversion.
 
 Do note, by the way, that state can be affected by `eval`, but is not captured by `show`.
 By this I mean that you can define functions in `eval`, like this:
@@ -284,9 +281,9 @@ To start us out, let's check out the stuff you can do with quotes:
     :> [ ] 4 <<
     :> >>
 
-The `<<` and `>>` functions push and pop items into quote bodies.
+The `<<` and `>>` are inverse functions that push and pop items into quote bodies.
 
-For dealing with quote patterns, we have `@+` and `@-`
+For dealing with quote patterns, we have a second pair of inverse functions, `@+` and `@-`.
 `@-` splits a quote with a pattern into two quotes with bodies containing the pattern and body of the original quote.
 `@+` does the opposite, by joining two quote's bodies into a single quote with the first as a body and the second as a head.
 
@@ -295,9 +292,9 @@ For dealing with quote patterns, we have `@+` and `@-`
 
 Moving on... (by the way, between these examples you might want to clear your stack):
 
-    :> 16 4 4 * + .
-    :> 2 / .
-    :> 17 < .
+    :> 16 4 4 * +
+    :> 2 /
+    :> 17 <
 
 Arithmetic! What wonders lie in store next?
 You may have noticed that Quark doesn't have subtraction by default.
@@ -307,12 +304,11 @@ Quark does however have negative numbers, so subtraction is implemented like thi
     :> 7 4 -
 
 Now how about string manipulation?
+The function `weld` will concatenate two strings.
+Also, `chars` will break a string into a quote containing each of the string's characters.
 
     :> "Tee" " Zeit!" weld
     :> "abc" chars
-
-These two functions are the only means of playing with strings in Quark.
-The standard library however, implements many useful function with just `weld` and `chars`.
 
 This concludes our function blitz, now on to interacting with the outside world...
 
@@ -363,7 +359,14 @@ In REPL mode (because it gracefully handles errors) you'll have to enter `*q` (n
 
 The Quark interpreter also implements two magic REPL only functions.
 
-As we saw above, we can quit the REPl by entering `*q`.
+As we saw above, we can quit the REPL by entering `*q`.
+
+Also available is the REPL function `*f`.
+Typed alone `*f` will print out all user defined functions and their accompanying binding.
+`*f` can also target a specific function to print out.
+
+    :> \*f
+    :> \*f drop
 
 
 Hindley–Milner!?
@@ -374,71 +377,71 @@ Quark does have a type system though, as fluid and dangerous as it may be.
 At runtime Quark will check to make sure core functions are being applied to the right arguments.
 Besides, that the type system tries to stay out of the way as much as it can.
 
-Here's our final function (number 22), `type`.
+Here's our final function, `type`.
 `type` returns a symbol which corresponds with the type of the value:
 
-    :> "Miskatonic University" type . clear
-    :Str
-    :> 5 type . clear
-    :Num
-    :> :dunwich type . clear
-    :Sym
-    :> summon_cthulhu type . clear
-    :Atom
-    :> [ 1 8 9 0 ] type . clear
-    :Quote
+    :> "Miskatonic University" type
+    :> 5 type
+    :> :dunwich type
+    :> summon_cthulhu type
+    :> [ 1 8 9 0 ] type
 
 Because of `type` it's possible to build a fancier typechecking system in Quark.
 In the future hopefully the prelude will have one included, but for now you'll have to write your own.
 
 
-Something's missing...
-----------------------
+Modules
+-------
+I have to confess that the title of this chapter is a bit of a lie.
+Unlike proper languages, Quark doesn't have a fancy module system.
+It can be handy to separate programs into multiple files though...
 
-I can hear your puzzlement from here.
-We just went through all 22 functions, and there was no import capabilities.
-The truth is, in Quark import is just a composition of two functions we've already met: `load` and `eval`.
-Your Quark distribution should have come with the standard library, why don't we load it up?
+Requiring files in Quark can be expressed as a composition of two functions we've already met: `load` and `eval`.
+Your Quark distribution should have come with the standard library, so why don't we load it up?
 Hopefully you put it somewhere accessible.
 
-    :> '~/Quark/prelude.qrk' load eval
+    :> '~/quark/prelude.qrk' load eval
 
-Now presuming you have :ok on your stack, you can play with all the goodies in there.
-Check out the api documentation to figure out how all this stuff works.
+Now presuming you have `:ok` on your stack, you can play with all the goodies in there.
+Check out the API documentation to figure out how all this stuff works.
 For convenience's sake Quark will use the prelude by default, so you won't have to add `load eval` to all your scripts.
 
 
-Philosophy
-----------
+Tips
+----
 
-Here are some principles to follow when writing Quark code:
+Here are some things to remember when writing Quark code:
 
-  1. Use point free style as much as possible.
-  2. Functions should be as simple as possible.
-  3. If a function goes across multiple lines, factor it.
-  4. While it's possible to reassign atoms, try to avoid this.
-  5. Function overloading is generally frowned upon.
-  6. If a function contains large amounts of stack manipulation, use named pattern variables.
-  7. All kinds of symbols are allowed in Quark atoms, use ? for boolean functions or ! for stateful ones.
+  1. Factor, factor, factor, and then factor again.
+     Because Quark is a concatenative language factoring is very easy.
+     Anytime you find yourself reusing some behavior, make it into a new function.
+
+  2. Non-stateful is better than stateful.
+     While it's possible to reassign atoms, try to structure your code so that this isn't necessary.
+
+  3. Using quote patterns is better than excessive use of stack manipulation functions.
+     This is a major problem for Forth and Factor code, which is often littered with `swap`s and `rot`s.
+     If you find yourself using lots of these functions, re-factor using pattern variables instead.
+
+  4. Be creative with function names.
+     Quark lets you use all kinds of symbols in function names, use that to your advantage.
+     End boolean returning functions with `?` or use `'` to indicate a new version of a value.
 
 
 Syntax
 ------
 
-Here's a handy reference to what characters are allowed in Quark values:
+`number ::= /-?[0-9](.[0-9])?/`
 
-Numbers can have 0..9 a dot '.' and then 0..9
+`atom ::= /[^0-9\[\]|:"'\s\n\t]+/`
 
-Atoms can contain any of A..Z, a..z, and +-=&^%$#@!?/><,.;{}~ along with `_`, `*`, and backtick
-(Irritatingly markdown is having a fit with some of the these characters so I had to separate the trouble makers)
+`symbol ::= <':'> <atom>`
 
-Symbols are the same as Atoms, but start with ':'
+`string ::= /'[^']*'/ | /"[^"]*"/`
 
-Strings with "" can hold anything that isn't ", and '' strings can have anything but '
+`quote ::= <'['> ?(<qexpr> <'|'>) ?(<qexpr>) <']'>
 
-Quotes start with '[', may have a pattern ending with '|', and must conclude with ']'
-
-Whitespace: tabs, spaces, and newlines, will all work.
+'qexpr ::= <number> | <atom> | <symbol> | <string> | <quote> | <qexpr> <qexpr>`
 
 
 Flaws
@@ -452,7 +455,7 @@ You hold the wounds open, and I'll get the salt.
 I am writing this small section after trying to bulk out the standard library with some new utility functions.
 Using one's language is always the bane of any language designer.
 It makes you furrow your brow and go: "Actually this is pretty rubbish..."
-I don't actually think Quark is rubbish, mind you, but it has made me notice some rough edges.
+In actuality don't think Quark is rubbish, but it has made me notice some rough edges.
 
 The biggest issue I'm sure you'll face programming in Quark, is all the leaky abstractions.
 Quark is a very mechanical language, in regards to it's evaluation.
@@ -477,5 +480,5 @@ The End
 Quark gets it's name from an analogy.
 In modern particle physics there are believed to be six elementary particles known as quarks.
 These quarks (along with the leptons) compose together to create what we consider matter.
-In Quark the key idea is that one can encode a vast amount of programming behavior in only 22 functions.
-Through compositions of these 22 functions, all the features of the language can be implemented.
+In Quark the key idea is that one can encode a vast amount of programming behavior with a small set of core functions.
+Through compositions of these core functions, all the features of the language can be implemented.
