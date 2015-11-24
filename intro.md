@@ -383,7 +383,6 @@ Here's our final function, `type`.
     :> "Miskatonic University" type
     :> 5 type
     :> :dunwich type
-    :> summon_cthulhu type
     :> [ 1 8 9 0 ] type
 
 Because of `type` it's possible to build a fancier typechecking system in Quark.
