@@ -364,9 +364,7 @@ As we saw above, we can quit the REPL by entering `*q`.
 Also available is the REPL function `*f`.
 Typed alone `*f` will print out all user defined functions and their accompanying binding.
 `*f` can also target a specific function to print out.
-
-    :> \*f
-    :> \*f drop
+For example you can use, `*f drop`, to see the current definition for `drop`.
 
 
 Hindley–Milner!?
@@ -430,17 +428,17 @@ Here are some things to remember when writing Quark code:
 Syntax
 ------
 
-`number ::= /-?[0-9](.[0-9])?/`
+    number ::= /-?[0-9](.[0-9])?/
 
-`atom ::= /[^0-9\[\]|:"'\s\n\t]+/`
+    atom ::= /[^0-9\[\]|:"'\s\n\t]+/
 
-`symbol ::= <':'> <atom>`
+    symbol ::= <':'> <atom>
 
-`string ::= /'[^']*'/ | /"[^"]*"/`
+    string ::= /'[^']*'/ | /"[^"]*"/
 
-`quote ::= <'['> ?(<qexpr> <'|'>) ?(<qexpr>) <']'>
+    quote ::= <'['> ?(<qexpr> <'|'>) ?(<qexpr>) <']'>
 
-'qexpr ::= <number> | <atom> | <symbol> | <string> | <quote> | <qexpr> <qexpr>`
+    qexpr ::= <number> | <atom> | <symbol> | <string> | <quote> | <qexpr> <qexpr>
 
 
 Flaws
