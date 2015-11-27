@@ -255,7 +255,7 @@ The only slight difference is that `parse` has that nifty error handling stuff, 
 Also, one last thing to keep in mind, is that `show` has a bit of difficulty with strings when iterated.
 If we apply `show` to the string `'cat'` we get the string `'"cat"'`.
 Then if we once again apply show to `'"cat"'` we get `'""cat""'`, which parses into `[ "" cat "" ]`.
-Hopefully in the future the will be solved, but for now watch out for repeated applications of `show` to a string.
+Hopefully in the future this will be solved, but for now watch out for repeated applications of `show` to a string.
 
 
 Utilities
@@ -408,7 +408,7 @@ Here are some things to remember when writing Quark code:
 
   4. Be creative with function names.
      Quark lets you use all kinds of symbols in function names, use that to your advantage.
-     End boolean returning functions with `?` or use `'` to indicate a new version of a value.
+     End boolean returning functions with `?` or use `+` to indicate an enhanced version of a function.
 
 
 Syntax
