@@ -1,3 +1,5 @@
+{-# LANGUAGE ViewPatterns #-}
+
 import QuarkInterpreter
 import QuarkParser
 import QuarkType
@@ -5,7 +7,13 @@ import System.Environment
 import System.IO
 import Paths_QuarkLang
 import qualified Data.Map as Map
+import qualified Data.Sequence as Seq
+import Data.Sequence (viewr, viewl)
+import Data.Sequence (ViewL(..))
+import Data.Sequence (ViewR(..))
 import Data.List
+
+--- Main ---
 
 -- entry point for the program
 -- if quark is run with an argument it will be run as a script, otherwise it starts the REPL
@@ -74,3 +82,23 @@ displayFunction :: String -> QVM -> IO ()
 displayFunction f (_, _, funcs) = putStrLn $ case Map.lookup f funcs of
   Just func -> serializeQ func
   Nothing -> "No such function: " ++ f
+
+
+--- Interpreter ---
+
+-- parses and evaluates a string of quark code
+runQuark :: Bool -> IO QVM -> String -> IO (Maybe QVM)
+runQuark quiet iovm s = case qParse s of
+  Left perror -> if not quiet then raiseError $ "Parse Error: " ++ (show perror) else return Nothing
+  Right tokens -> do
+    vm <- iovm
+    let vm' = (return . Just) (fillQVM vm (Seq.fromList tokens)) in recEval vm'
+
+-- reduces a quark vm until its token stack is empty
+recEval :: IO (Maybe QVM) -> IO (Maybe QVM)
+recEval iovm = do
+  vm <- iovm
+  case vm of
+    Just (s, (viewl -> Seq.EmptyL), l) -> return $ Just (s, Seq.empty, l)
+    Just x -> recEval $ eval x
+    Nothing -> return Nothing

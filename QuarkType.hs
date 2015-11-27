@@ -27,6 +27,14 @@ type QProg = Seq.Seq QItem
 -- a tuple containing a data stack, a list of quark items to evaluate, and an index of functions
 type QVM = (QStack, QProg, QLib)
 
+-- concat items to a quark vm's token stack
+fillQVM :: QVM -> QProg -> QVM
+fillQVM (s, t, l) t' = (s, t' Seq.>< t, l)
+
+-- a base quark vm, obviously all quark programs start with this
+emptyQVM :: QVM
+emptyQVM = ([], Seq.empty, Map.empty)
+
 -- getters for the QVM type
 
 getStack :: QVM -> QStack

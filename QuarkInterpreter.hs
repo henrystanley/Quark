@@ -1,6 +1,6 @@
 {-# LANGUAGE ViewPatterns #-}
 
-module QuarkInterpreter (runQuark, emptyQVM) where
+module QuarkInterpreter (eval, raiseError) where
 
 import QuarkType
 import QuarkParser
@@ -65,14 +65,6 @@ patternMatch pattern stack = qmatch Map.empty pattern stack
           else qmatch (Map.insert x y l) sq ys
         qmatch l (viewr -> sq :> (QQuote p b _)) ((QQuote p2 b2 _) : ys) = if (p == p2) && (b == b2) then qmatch l sq ys else Nothing
         qmatch l (viewr -> sq :> x) (y : ys) = if x == y then qmatch l sq ys else Nothing
-
--- concat items to a quark vm's token stack
-fillQVM :: QVM -> QProg -> QVM
-fillQVM (s, t, l) t' = (s, t' >< t, l)
-
--- a base quark vm, obviously all quark programs start with this
-emptyQVM :: QVM
-emptyQVM = ([], Seq.empty, Map.empty)
 
 
 --- Core Function Utils ---
@@ -176,7 +168,7 @@ qweld ((QStr a) : (QStr b) : s, t, l) = ((QStr (b ++ a)) : s, t, l)
 -- pops a symbol and quote. binds the symbol to the quote as a function in the vm
 qdef ((QSym x) : y : s, t, l) = (s, t, Map.insert x y l)
 
--- evaluates a string of quark code by parsing it and concating these new values to the vm's token list
+-- parses a string containing quark code
 qparsei ((QStr x) : s, t, l) = case qParse x of
   Left _ -> ((QSym "not-ok") : s, t, l)
   Right qvals -> ((QSym "ok") : parsedQuote : s, t, l)
@@ -226,25 +218,3 @@ qcmd ((QStr cmd) : s, t, l) = do
 
 -- exits the interpreter (only if in script mode)
 qexit _ = return Nothing
-
-
---- Interpreter ---
-
--- Note: These functions would fit better in Quark.hs, but the `eval` core function needs `runQuark`, and mutually dependent modules are a pain...
-
--- parses and evaluates a string of quark code
-runQuark :: Bool -> IO QVM -> String -> IO (Maybe QVM)
-runQuark quiet iovm s = case qParse s of
-  Left perror -> if not quiet then raiseError $ "Parse Error: " ++ (show perror) else return Nothing
-  Right tokens -> do
-    vm <- iovm
-    let vm' = (return . Just) (fillQVM vm (Seq.fromList tokens)) in recEval vm'
-
--- reduces a quark vm until its token stack is empty
-recEval :: IO (Maybe QVM) -> IO (Maybe QVM)
-recEval iovm = do
-  vm <- iovm
-  case vm of
-    Just (s, (viewl -> Seq.EmptyL), l) -> return $ Just (s, Seq.empty, l)
-    Just x -> recEval $ eval x
-    Nothing -> return Nothing
