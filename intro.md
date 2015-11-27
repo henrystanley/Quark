@@ -221,55 +221,41 @@ We can now type `clear` to destroy the entire stack.
 A bit dangerous, but I think you can handle it.
 
 
-"Luke, use the eval"
---------------------
+Call of the wild Ouroboros
+--------------------------
 
-Modern programming languages have a habit of implementing a function called `eval`.
-They then demand you never use it, unless absolutely necessary.
+As you may have noticed, Quark has an exceptionally simple syntax.
+Beyond the mere aesthetic value of this design decision, Quark's simplicity also makes parsing and serialization trivial.
 
-Here at Quark Industries we think this behavior is pretty silly.
-That's why we implemented an `eval` function, and hope you use it too.
+The core function `parse` enables us to safely transform a string containing Quark code, into actual Quark code.
 Check this out:
 
-    :> "8.0 :cow" eval
+    :> "8 :cow ['sea']" parse
 
-Have a string containing Quark code?
-Toss it at `eval` and the interpreter will evaluate it!
-By now most sane programmers will feel rather uneasy about this whole thing, and I admit that `eval` can be dangerous.
-Remember though, that Quark focuses on flexibility and expressiveness over safety.
-`eval` is a powerful tool, and as long as you don't do anything too crazy, everything should be fine...
-`eval` is even somewhat safe.
-As you can see above, it puts `:ok` on the stack if everything went well.
-However, if you give it something like this:
+You might be curious as to why `parse` returns a symbol alongside the parsed code, allow me to explain.
+`parse` uses an idiom found in several other Quark functions to indicate the outcome of a function.
+Just like in IO, where things don't always go smoothly, parsing can result in failure.
+To express this possibility, `parse` pushes an `:ok` when things went alright, and a `:not-ok` when they didn't.
+For an example of parsing failure, if we try this:
 
-    :> "[ pls no 39jd.a 3o" eval
+    :> "[ this quote has no end" parse
 
-`eval` will let you know when it can't parse something by pushing `:not-ok`, instead of crashing the program.
-Still, I suppose this might trip it up:
+We'll get back a `:not-ok`.
+The nice thing about this idiom, is we can pattern match against it.
+This design pattern is basically a hacked together version of Haskell's Maybe monad.
 
-    :> "[rec] :rec def rec" eval
-
-So don't do that.
-
-One of the neat consequences of how simple Quark's syntax is, is the incredible ease with which it is serialized.
-So we have `eval` to turn strings into code, but what about turning code into strings?
+So we have `parse` to turn strings into code, but what about turning code into strings?
 Meet, `show`
 
     :> [ x y | 4 :nimblefish ] show print
 
-`eval` and `show` are basically inverse functions.
-The only slight difference is that `eval` doesn't just parse, but also calls its argument.
+`parse` and `show` are basically inverse functions.
+The only slight difference is that `parse` has that nifty error handling stuff, while `show` will always succeed.
 
-I don't know if it's just me, but I think the ability to serialize and interpret arbitrary code is pretty darn cool.
-The implications for metaprogramming are reason enough to justify this slightly dangerous feature.
-For example, these functions are used very easily for things like type conversion.
-
-Do note, by the way, that state can be affected by `eval`, but is not captured by `show`.
-By this I mean that you can define functions in `eval`, like this:
-
-    :> "['Snail' print] :snail def" eval
-
-However `show` will never include defined functions, it merely turns the top item of the stack into a string.
+Also, one last thing to keep in mind, is that `show` has a bit of difficulty with strings when iterated.
+If we apply `show` to the string `'cat'` we get the string `'"cat"'`.
+Then if we once again apply show to `'"cat"'` we get `'""cat""'`, which parses into `[ "" cat "" ]`.
+Hopefully in the future the will be solved, but for now watch out for repeated applications of `show` to a string.
 
 
 Utilities

@@ -97,6 +97,7 @@ coreFunc = cf
     cf "weld" = Just $ qPureFunc "weld" [Str, Str] qweld
     cf "type" = Just $ qPureFunc "type" [Any] qtypei
     cf "def" = Just $ qPureFunc "def" [Quote, Sym] qdef
+    cf "parse" = Just $ qPureFunc "parse" [Str] qparsei
     -- impure functions
     cf "call" = Just $ qFunc "call" [Quote] qcall
     cf "match" = Just $ qFunc "match" [Quote] qmatch
@@ -105,7 +106,6 @@ coreFunc = cf
     cf "write" = Just $ qFunc "write" [Str, Str] qwrite
     cf "cmd" = Just $ qFunc "cmd" [Str] qcmd
     cf "print" = Just $ qFunc "print" [Str] qprint
-    cf "eval" = Just $ qFunc "eval" [Str] qevali
     cf "exit" = Just $ qFunc "exit" [] qexit
     cf x = Nothing
 
@@ -176,6 +176,11 @@ qweld ((QStr a) : (QStr b) : s, t, l) = ((QStr (b ++ a)) : s, t, l)
 -- pops a symbol and quote. binds the symbol to the quote as a function in the vm
 qdef ((QSym x) : y : s, t, l) = (s, t, Map.insert x y l)
 
+-- evaluates a string of quark code by parsing it and concating these new values to the vm's token list
+qparsei ((QStr x) : s, t, l) = case qParse x of
+  Left _ -> ((QSym "not-ok") : s, t, l)
+  Right qvals -> ((QSym "ok") : parsedQuote : s, t, l)
+    where parsedQuote = QQuote Seq.empty (Seq.fromList qvals) Map.empty
 
 -- Scary Impure Functions:
 
@@ -218,13 +223,6 @@ qcmd ((QStr cmd) : s, t, l) = do
     Left _ -> [QSym "not-ok"];
     Right s -> [QSym "ok", QStr s]; }
   return . Just $ (stack_top ++ s, t, l)
-
--- evaluates a string of quark code by parsing it and concating these new values to the vm's token list
-qevali ((QStr x) : s, t, l) = do {
-  evaled <- runQuark True (return (s, t, l)) x;
-  case evaled of
-    Nothing -> return $ Just ((QSym "not-ok") : s, t, l)
-    Just (s', t', l') -> return $ Just ((QSym "ok") : s', t', l'); }
 
 -- exits the interpreter (only if in script mode)
 qexit _ = return Nothing
