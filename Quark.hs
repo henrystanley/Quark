@@ -69,19 +69,18 @@ qRepl vm = do
 -- prints the stack
 displayStack :: QVM -> IO ()
 displayStack vm = putStrLn stackStr
-  where stackStr = intercalate " " . map safeSerializeQ . reverse . getStack $ vm
-
+  where stackStr = intercalate " " . map safeSerializeQ . reverse . stack $ vm
 
 -- print all runtime defined functions from a QVM
 displayFunctions :: QVM -> IO ()
-displayFunctions (_, _, funcs) = mapM putStr toPrint >> return ()
-  where toPrint = map (\(f, v) -> f ++ "\n    " ++ (serializeQ v) ++ "\n\n") $ Map.assocs funcs
+displayFunctions vm = mapM putStr toPrint >> return ()
+  where toPrint = map (\(f, v) -> f ++ "\n    " ++ (serializeQ v) ++ "\n\n") $ Map.assocs (binds vm)
 
 -- print a specific runtime defined function from a QVM
 displayFunction :: String -> QVM -> IO ()
-displayFunction f (_, _, funcs) = putStrLn $ case Map.lookup f funcs of
+displayFunction fname vm = putStrLn $ case Map.lookup fname (binds vm) of
   Just func -> serializeQ func
-  Nothing -> "No such function: " ++ f
+  Nothing -> "No such function: " ++ fname
 
 
 --- Interpreter ---
@@ -92,13 +91,13 @@ runQuark quiet iovm s = case qParse s of
   Left perror -> if not quiet then raiseError $ "Parse Error: " ++ (show perror) else return Nothing
   Right tokens -> do
     vm <- iovm
-    let vm' = (return . Just) (fillQVM vm (Seq.fromList tokens)) in recEval vm'
+    let vm' = (return . Just) (pushProgQVM vm (Seq.fromList tokens)) in recEval vm'
 
 -- reduces a quark vm until its token stack is empty
 recEval :: IO (Maybe QVM) -> IO (Maybe QVM)
 recEval iovm = do
   vm <- iovm
   case vm of
-    Just (s, (viewl -> Seq.EmptyL), l) -> return $ Just (s, Seq.empty, l)
+    Just (QVM _ (viewl -> Seq.EmptyL) _) -> return vm
     Just x -> recEval $ eval x
     Nothing -> return Nothing

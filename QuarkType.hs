@@ -24,38 +24,39 @@ type QStack = [QItem]
 -- sequence to hold unevaluated items
 type QProg = Seq.Seq QItem
 
--- a tuple containing a data stack, a list of quark items to evaluate, and an index of functions
-type QVM = (QStack, QProg, QLib)
 
--- concat items to a quark vm's token stack
-fillQVM :: QVM -> QProg -> QVM
-fillQVM (s, t, l) t' = (s, t' Seq.>< t, l)
+--- Quark State Type ---
+
+-- a type containing a data stack, a list of quark items to evaluate, and an index of functions
+data QVM = QVM { stack :: QStack
+               , prog :: QProg
+               , binds :: QLib
+               } deriving (Show, Eq)
 
 -- a base quark vm, obviously all quark programs start with this
 emptyQVM :: QVM
-emptyQVM = ([], Seq.empty, Map.empty)
+emptyQVM = QVM [] Seq.empty Map.empty
 
--- getters for the QVM type
-
-getStack :: QVM -> QStack
-getStack (s, _, _) = s
-
-getTokens:: QVM -> QProg
-getTokens (_, t, _) = t
-
-getLib :: QVM -> QLib
-getLib (_, _, l) = l
+-- concat items to a quark vm's token stack
+pushProgQVM :: QVM -> QProg -> QVM
+pushProgQVM vm newProg = vm { prog = newProg Seq.>< (prog vm) }
 
 -- stack manipulation functions
 
 dropVM :: Int -> QVM -> QVM
-dropVM n (s, t, l) = (drop n s, t, l)
+dropVM n vm = vm { stack = drop n (stack vm) }
 
 pushVM :: QItem -> QVM -> QVM
-pushVM x (s, t, l) = (x : s, t, l)
+pushVM x vm = vm { stack = x : (stack vm) }
 
 -- interpreter state
 type IState = IO (Maybe QVM)
+
+-- a function that maps a QVM to an IO (Maybe QVM)
+type QFunc = QVM -> IState
+
+
+--- Serialization ---
 
 -- converts a possibly nested quark item, into a string of the equivelent quark code
 -- reverse parsing, if you will
