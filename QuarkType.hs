@@ -2,6 +2,7 @@ module QuarkType where
 
 import qualified Data.Map as Map
 import qualified Data.Sequence as Seq
+import Data.Foldable (toList)
 
 --- Quark Types ---
 
@@ -23,6 +24,17 @@ type QStack = [QItem]
 
 -- sequence to hold unevaluated items
 type QProg = Seq.Seq QItem
+
+
+--- QQuote Functions ---
+
+-- gets and replaces variables in quote from variable map
+forceSub :: QItem -> QItem
+forceSub (QQuote pattern body vars) = QQuote (fmap (sub vars) pattern) (fmap (sub vars) body) Map.empty
+  where sub vars (QQuote p b v) = forceSub (QQuote p b (Map.union v vars))
+        sub vars (QAtom a) = case Map.lookup a vars of { Just x -> x; Nothing -> QAtom a; }
+        sub _ x = x
+forceSub x = x
 
 
 --- Quark State Type ---
@@ -58,35 +70,21 @@ type QFunc = QVM -> IState
 
 --- Serialization ---
 
--- converts a possibly nested quark item, into a string of the equivelent quark code
--- reverse parsing, if you will
-serializeQ :: QItem -> String
-serializeQ (QNum x) = if (ceiling x) == (floor x) then (show . floor) x else show x
-serializeQ (QAtom x) = x
-serializeQ (QSym x) = ':' : x
-serializeQ (QStr x) = "\"" ++ x ++ "\""
-serializeQ (QQuote args vals vars) = "[" ++ s_args ++ s_vals ++ "]"
-  where join_with_spaces sq = case (foldl (++) "" $ fmap ((" " ++) . serializeInnerQ vars) sq) of
-          [] -> ""
-          xs -> xs ++ " "
-        s_args = if Seq.null args then "" else join_with_spaces args ++ "|"
-        s_vals = join_with_spaces vals
-
-serializeInnerQ :: QLib -> QItem -> String
-serializeInnerQ vars (QAtom v) = case Map.lookup v vars of { Just x -> serializeQ x; Nothing -> v; }
-serializeInnerQ vars (QQuote args vals vars2) = serializeQ $ QQuote args vals (Map.union vars2 vars)
-serializeInnerQ _ x = serializeQ x
-
--- used in REPL
--- if a quote pattern/body has more than 20 items it is cut-off and "..." is appended
-safeSerializeQ :: QItem -> String
-safeSerializeQ (QQuote args vals vars) = "[" ++ s_args ++ s_vals ++ "]"
-  where join_with_spaces sq = case (foldl (++) "" $ fmap ((" " ++) . serializeInnerQ vars) (Seq.take 20 sq)) of
-          [] -> ""
-          xs -> xs ++ " "
-        s_args = if Seq.null args then "" else join_with_spaces args ++ (if Seq.length args > 20 then "..." else "") ++ "|"
-        s_vals = join_with_spaces vals ++ (if Seq.length vals > 20 then "..." else "")
-safeSerializeQ x = serializeQ x
+-- converts a quark item into a string of the equivelent quark code
+-- the number parameter `n` will shorten quotes to this length and add an ellipsis
+-- if `n` is 0 no shortening will occur
+serializeQ :: Int -> QItem -> String
+serializeQ _ (QNum x) = if (ceiling x) == (floor x) then (show . floor) x else show x
+serializeQ _ (QAtom x) = x
+serializeQ _ (QSym x) = ':' : x
+serializeQ _ (QStr x) = "\"" ++ x ++ "\""
+serializeQ n (QQuote pattern body vars) = "[ " ++ patternStr ++ bodyStr ++ " ]"
+  where (QQuote pattern' body' _) = forceSub (QQuote pattern body vars)
+        getItems = if n == 0 then id else take n
+        ellipsis xs = if (Seq.length xs > n) && (n /= 0) then " ..." else ""
+        quoteSeqToStr = unwords . map (serializeQ n) . getItems . toList
+        patternStr = if Seq.null pattern' then "" else (quoteSeqToStr pattern') ++ (ellipsis pattern') ++ " | "
+        bodyStr = (quoteSeqToStr body') ++ (ellipsis body')
 
 
 --- Quark Type Signatures ---

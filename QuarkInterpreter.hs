@@ -178,7 +178,7 @@ qseparate (QQuote ys xs v) = [(QQuote Seq.empty xs v), (QQuote Seq.empty ys Map.
 qtypei = qtypeLiteral . qtype
 
 -- pops an item and pushes its string representation using serializeQ
-qshow = QStr . serializeQ
+qshow = QStr . serializeQ 0
 
 -- pops a string and pushes a quote containing a string for each character in the string
 qchars (QStr xs) = QQuote Seq.empty strChars Map.empty
@@ -216,7 +216,7 @@ qmatch vm = callQuote (tryQuotes quotes) $ vm { stack = stack' }
 qprint (QVM ((QStr x) : stack) prog binds) = putStr x >> (return . Just $ QVM stack prog binds)
 
 -- prints the contents of the entire stack with a linebreak
-qprintstack vm = (putStrLn . intercalate " " . map serializeQ . reverse . stack) vm >> (return . Just $ vm)
+qprintstack vm = (putStrLn . intercalate " " . map (serializeQ 0) . reverse . stack) vm >> (return . Just $ vm)
 
 -- pops a string and loads the file with this filename, then pushes back the contents of the file as a string
 qload (QVM ((QStr filename) : stack) prog binds) = do

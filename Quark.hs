@@ -69,17 +69,17 @@ qRepl vm = do
 -- prints the stack
 displayStack :: QVM -> IO ()
 displayStack vm = putStrLn stackStr
-  where stackStr = intercalate " " . map safeSerializeQ . reverse . stack $ vm
+  where stackStr = intercalate " " . map (serializeQ 20) . reverse . stack $ vm
 
 -- print all runtime defined functions from a QVM
 displayFunctions :: QVM -> IO ()
 displayFunctions vm = mapM putStr toPrint >> return ()
-  where toPrint = map (\(f, v) -> f ++ "\n    " ++ (serializeQ v) ++ "\n\n") $ Map.assocs (binds vm)
+  where toPrint = map (\(f, v) -> f ++ "\n    " ++ (serializeQ 0 v) ++ "\n\n") $ Map.assocs (binds vm)
 
 -- print a specific runtime defined function from a QVM
 displayFunction :: String -> QVM -> IO ()
 displayFunction fname vm = putStrLn $ case Map.lookup fname (binds vm) of
-  Just func -> serializeQ func
+  Just func -> serializeQ 0 func
   Nothing -> "No such function: " ++ fname
 
 
