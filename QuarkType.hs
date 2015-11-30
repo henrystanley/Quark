@@ -7,7 +7,7 @@ import Data.Foldable (toList)
 --- Quark Types ---
 
 data QItem = QNum Double -- Number
-           | QQuote (Seq.Seq QItem) (Seq.Seq QItem) QLib -- Quote
+           | QQuote (Seq.Seq QItem) (Seq.Seq QItem) -- Quote
            | QAtom String -- Atom (function name or variable)
            | QSym String -- Symbol
            | QStr String -- String
@@ -24,17 +24,6 @@ type QStack = [QItem]
 
 -- sequence to hold unevaluated items
 type QProg = Seq.Seq QItem
-
-
---- QQuote Functions ---
-
--- gets and replaces variables in quote from variable map
-forceSub :: QItem -> QItem
-forceSub (QQuote pattern body vars) = QQuote (fmap (sub vars) pattern) (fmap (sub vars) body) Map.empty
-  where sub vars (QQuote p b v) = forceSub (QQuote p b (Map.union v vars))
-        sub vars (QAtom a) = case Map.lookup a vars of { Just x -> x; Nothing -> QAtom a; }
-        sub _ x = x
-forceSub x = x
 
 
 --- Quark State Type ---
@@ -78,13 +67,12 @@ serializeQ _ (QNum x) = if (ceiling x) == (floor x) then (show . floor) x else s
 serializeQ _ (QAtom x) = x
 serializeQ _ (QSym x) = ':' : x
 serializeQ _ (QStr x) = "\"" ++ x ++ "\""
-serializeQ n (QQuote pattern body vars) = "[ " ++ patternStr ++ bodyStr ++ " ]"
-  where (QQuote pattern' body' _) = forceSub (QQuote pattern body vars)
-        getItems = if n == 0 then id else take n
+serializeQ n (QQuote pattern body) = "[ " ++ patternStr ++ bodyStr ++ " ]"
+  where getItems = if n == 0 then id else take n
         ellipsis xs = if (Seq.length xs > n) && (n /= 0) then " ..." else ""
         quoteSeqToStr = unwords . map (serializeQ n) . getItems . toList
-        patternStr = if Seq.null pattern' then "" else (quoteSeqToStr pattern') ++ (ellipsis pattern') ++ " | "
-        bodyStr = (quoteSeqToStr body') ++ (ellipsis body')
+        patternStr = if Seq.null pattern then "" else (quoteSeqToStr pattern) ++ (ellipsis pattern) ++ " | "
+        bodyStr = (quoteSeqToStr body) ++ (ellipsis body)
 
 
 --- Quark Type Signatures ---
@@ -108,7 +96,7 @@ qtype (QNum _) = Num
 qtype (QAtom _) = Atom
 qtype (QSym _) = Sym
 qtype (QStr _) = Str
-qtype (QQuote _ _ _) = Quote
+qtype (QQuote _ _) = Quote
 
 -- converts the type of a quark item into a quark symbol
 qtypeLiteral :: QType -> QItem

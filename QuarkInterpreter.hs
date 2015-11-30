@@ -40,7 +40,7 @@ libFunc bindings fname = Map.lookup fname bindings >>= (\f -> Just (\vm -> tryQu
 
 -- this is the function responsible for the behavior of the `call` quark function
 tryQuote :: QItem -> QVM -> IState
-tryQuote (QQuote p b _) vm = case patternMatch p (stack vm) of
+tryQuote (QQuote p b) vm = case patternMatch p (stack vm) of
   Just bindings -> callQuote b bindings vm'
   Nothing -> return . Just $ pushVM (QSym "nil") vm'
   where vm' = dropVM (Seq.length p) vm
@@ -53,7 +53,7 @@ callQuote prog vars vm = return . Just $ pushProgQVM vm $ fmap (qSub vars) prog
 -- substitutes pattern terms
 qSub :: QLib -> QItem -> QItem
 qSub vars (QAtom a) = case Map.lookup a vars of { Just x -> x; Nothing -> QAtom a; }
-qSub vars (QQuote p b _) = QQuote (fmap (qSub vars) p) (fmap (qSub vars) b) Map.empty
+qSub vars (QQuote p b) = QQuote (fmap (qSub vars) p) (fmap (qSub vars) b)
 qSub _ x = x
 
 -- checks to make sure the items a quote is being applied to match the quotes pattern
@@ -66,7 +66,6 @@ patternMatch pattern stack = qmatch Map.empty pattern stack
           ((sq :> (QAtom x)), (y : ys)) -> if Map.member x vars
             then if (vars Map.! x) == y then qmatch vars sq ys else Nothing
             else qmatch (Map.insert x y vars) sq ys
-          ((sq :> (QQuote p b _)), ((QQuote p2 b2 _) : ys)) -> if (p == p2) && (b == b2) then qmatch vars sq ys else Nothing
           ((sq :> x), (y : ys)) -> if x == y then qmatch vars sq ys else Nothing
 
 
@@ -165,17 +164,17 @@ qNumFunc name f = qPureFunc name [Num, Num] f'
 qlessthan (QNum x) (QNum y) = QSym $ if x < y then "true" else "false"
 
 -- pushes an item into a quote body
-qpush x (QQuote a sq v) = QQuote a (sq |> x) v
+qpush x (QQuote a sq) = QQuote a (sq |> x)
 
 -- pops an item from a quote body
-qpop (QQuote a (viewr -> sq :> x) v) = [x, (QQuote a sq v)]
+qpop (QQuote a (viewr -> sq :> x)) = [x, (QQuote a sq)]
 qpop x = [x]
 
 -- makes the body of the second quote the pattern of the first quote
-qunite (QQuote _ xs v) (QQuote _ ys _) = QQuote ys xs v
+qunite (QQuote _ xs) (QQuote _ ys) = QQuote ys xs
 
 -- splits a quote into two new quotes, whose bodies contain the pattern and body of the original quote
-qseparate (QQuote ys xs v) = [(QQuote Seq.empty xs v), (QQuote Seq.empty ys Map.empty)]
+qseparate (QQuote ys xs) = [(QQuote Seq.empty xs), (QQuote Seq.empty ys)]
 
 -- pops an item, and pushes the type of this item as a symbol
 qtypei = qtypeLiteral . qtype
@@ -184,7 +183,7 @@ qtypei = qtypeLiteral . qtype
 qshow = QStr . serializeQ 0
 
 -- pops a string and pushes a quote containing a string for each character in the string
-qchars (QStr xs) = QQuote Seq.empty strChars Map.empty
+qchars (QStr xs) = QQuote Seq.empty strChars
   where strChars = Seq.fromList $ map (QStr . (\c -> [c])) xs
 
 -- pops two strings and concats them
@@ -198,7 +197,7 @@ qdef vm = vm { stack = stack', binds = Map.insert fname f (binds vm) }
 qparsei (QStr x) = case qParse x of
   Left _ -> [QSym "not-ok"]
   Right qvals -> [QSym "ok", parsedQuote]
-    where parsedQuote = QQuote Seq.empty (Seq.fromList qvals) Map.empty
+    where parsedQuote = QQuote Seq.empty (Seq.fromList qvals)
 
 
 -- Scary Impure Functions:
@@ -208,10 +207,10 @@ qcall (QVM (quote : stack) prog binds) = tryQuote quote $ QVM stack prog binds
 
 -- calls the first quote in a list of quotes that has a matching pattern
 qmatch vm = (tryQuotes quotes) vm { stack = stack' }
-  where ((QQuote _ quotes _) : stack') = stack vm
+  where ((QQuote _ quotes) : stack') = stack vm
         tryQuotes qs = case viewl qs of
           Seq.EmptyL -> return . Just
-          ((QQuote p b _) :< sq) -> case patternMatch p stack' of
+          ((QQuote p b) :< sq) -> case patternMatch p stack' of
             Just bindings -> callQuote b bindings . dropVM (Seq.length p)
             Nothing -> tryQuotes sq
           (_ :< _) -> (\_ -> raiseError "Non quote value found in `match` call")

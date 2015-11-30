@@ -76,7 +76,7 @@ qquote = do
   quote <- qtokens
   qsep
   char ']'
-  return $ QQuote (Seq.fromList args) (Seq.fromList quote) Map.empty
+  return $ QQuote (Seq.fromList args) (Seq.fromList quote)
 
 
 --- Syntatic Structure ---
