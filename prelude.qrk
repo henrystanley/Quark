@@ -32,13 +32,9 @@
 
 [ x y f | x f call y ] :dip def
 
-[ x y z f | x y f call z ] :double-dip def
-
-[ w x y z f | w x y f call z ] :triple-dip def
-
 [ x fa fb | x fa call x fb call ] :bi def
 
-[ x fa fb fc | x fa call a fb call x fc call ] :tri def
+[ x fa fb fc | x fa call x fb call x fc call ] :tri def
 
 [ q fa fb | q call fa call q call fb call ] :q-bi def
 
@@ -75,7 +71,7 @@
 
 [ :true :true | :true ] :and def
 
-[[ :true x | :true ] [ x :true | :true ]] :or mdef
+[[ :true x | :true ] [ x :true | :true ] [ x y | :nil ]] :or mdef
 
 [[ :true | :nil ] [ x | :true ]] :not mdef
 
@@ -103,11 +99,11 @@
 
 [ @- swap >> [ swap @+ ] dip ] :@> def
 
-[ q x | q @- swap x << swap @+ ] :<@ def
+[ x | @- swap x << swap @+ ] :<@ def
 
-[[ [] x f | x ] [ xs x f | xs >> x f call f fold ]] :fold mdef
+[[ [] x f | x ] [ x f | >> x f call f fold ]] :fold mdef
 
-[[ [] f | [] ] [ xs f | xs >> [ f map ] dip f call << ]] :map mdef
+[[ [] f | [] ] [ f | >> [ f map ] dip f call << ]] :map mdef
 
 [ [] [ swap << ] fold ] :reverse def
 
