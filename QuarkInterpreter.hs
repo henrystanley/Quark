@@ -36,22 +36,25 @@ getFunc bindings fname = case coreFunc fname of
 
 -- gets a runtime defined function, if no such function exists returns `Nothing`
 libFunc :: QLib -> FuncName -> Maybe QFunc
-libFunc bindings fname = Map.lookup fname bindings >>= (\f -> Just (\vm -> callQuote f vm))
+libFunc bindings fname = Map.lookup fname bindings >>= (\f -> Just (\vm -> tryQuote f vm))
 
 -- this is the function responsible for the behavior of the `call` quark function
--- it is also used in `match` if a matching quote is found
-callQuote :: QItem -> QVM -> IState
-callQuote (QQuote args values vars) vm = return . Just $ case patternMatch args (stack vm) of
-  Just bindings -> expandQuote values (Map.union vars bindings) vm'
-  Nothing -> pushVM (QSym "nil") vm'
-  where vm' = dropVM (Seq.length args) vm
-callQuote _ _ = raiseError "Tried to call a value that wasn't a quote"
+tryQuote :: QItem -> QVM -> IState
+tryQuote (QQuote p b _) vm = case patternMatch p (stack vm) of
+  Just bindings -> callQuote b bindings vm'
+  Nothing -> return . Just $ pushVM (QSym "nil") vm'
+  where vm' = dropVM (Seq.length p) vm
+tryQuote _ _ = raiseError "Tried to call a value that wasn't a quote"
 
-expandQuote :: QProg -> QLib -> QVM -> QVM
-expandQuote prog vars vm = pushProgQVM vm $ fmap expand prog
-  where expand (QAtom v) = case Map.lookup v vars of { Just x -> x; Nothing -> QAtom v; }
-        expand (QQuote p b v) = QQuote p b $ Map.union v vars
-        expand x = x
+-- appends quote body to VM prog queue after subbing
+callQuote :: QProg -> QLib -> QVM -> IState
+callQuote prog vars vm = return . Just $ pushProgQVM vm $ fmap (qSub vars) prog
+
+-- substitutes pattern terms
+qSub :: QLib -> QItem -> QItem
+qSub vars (QAtom a) = case Map.lookup a vars of { Just x -> x; Nothing -> QAtom a; }
+qSub vars (QQuote p b _) = QQuote (fmap (qSub vars) p) (fmap (qSub vars) b) Map.empty
+qSub _ x = x
 
 -- checks to make sure the items a quote is being applied to match the quotes pattern
 -- if these items do match, it returns the variable bindings for the quote body
@@ -201,16 +204,17 @@ qparsei (QStr x) = case qParse x of
 -- Scary Impure Functions:
 
 -- calls a quote
-qcall (QVM (quote : stack) prog binds) = callQuote quote $ QVM stack prog binds
+qcall (QVM (quote : stack) prog binds) = tryQuote quote $ QVM stack prog binds
 
 -- calls the first quote in a list of quotes that has a matching pattern
-qmatch vm = callQuote (tryQuotes quotes) $ vm { stack = stack' }
-  where ((QQuote _ quotes vars) : stack') = stack vm
-        tryQuotes quotes' = case viewl quotes' of
-          Seq.EmptyL -> QQuote Seq.empty Seq.empty Map.empty
-          ((QQuote p b v) :< sq) -> case patternMatch p stack' of
-            Just bindings -> (QQuote p b (Map.union v vars))
+qmatch vm = (tryQuotes quotes) vm { stack = stack' }
+  where ((QQuote _ quotes _) : stack') = stack vm
+        tryQuotes qs = case viewl qs of
+          Seq.EmptyL -> return . Just
+          ((QQuote p b _) :< sq) -> case patternMatch p stack' of
+            Just bindings -> callQuote b bindings . dropVM (Seq.length p)
             Nothing -> tryQuotes sq
+          (_ :< _) -> (\_ -> raiseError "Non quote value found in `match` call")
 
 -- pops a string and prints it without a linebreak
 qprint (QVM ((QStr x) : stack) prog binds) = putStr x >> (return . Just $ QVM stack prog binds)
