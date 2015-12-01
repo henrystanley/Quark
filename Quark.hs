@@ -3,6 +3,9 @@
 import Quark.Eval
 import Quark.Parse
 import Quark.Type
+import Quark.QVM
+import Quark.QType
+import Quark.Serialize
 import System.Environment
 import System.IO
 import Paths_QuarkLang

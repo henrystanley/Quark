@@ -3,6 +3,9 @@
 module Quark.Eval (eval, raiseError) where
 
 import Quark.Type
+import Quark.QVM
+import Quark.QType
+import Quark.Serialize
 import Quark.Parse
 import qualified Data.Map.Strict as Map
 import qualified Data.Sequence as Seq
