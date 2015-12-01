@@ -2,7 +2,7 @@ name:               QuarkLang
 version:            0.1.1.0
 homepage:           kdt.io/~/quark
 license:            PublicDomain
-license-file:       COPYING.txt
+license-file:       Doc/COPYING.txt
 author:             ⊥
 maintainer:         none
 category:           Language

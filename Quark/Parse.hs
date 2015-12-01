@@ -1,10 +1,10 @@
-module QuarkParser (qParse) where
+module Quark.Parse (qParse) where
 
 import Text.Parsec
 import Text.Parsec ((<|>))
 import qualified Data.Sequence as Seq
 import qualified Data.Map as Map
-import QuarkType
+import Quark.Type
 
 --- Numbers ---
 

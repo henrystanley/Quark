@@ -1,8 +1,8 @@
 {-# LANGUAGE ViewPatterns #-}
 
-import QuarkInterpreter
-import QuarkParser
-import QuarkType
+import Quark.Eval
+import Quark.Parse
+import Quark.Type
 import System.Environment
 import System.IO
 import Paths_QuarkLang

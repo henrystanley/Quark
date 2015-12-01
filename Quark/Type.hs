@@ -1,4 +1,4 @@
-module QuarkType where
+module Quark.Type where
 
 import qualified Data.Map as Map
 import qualified Data.Sequence as Seq

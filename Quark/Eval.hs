@@ -1,9 +1,9 @@
 {-# LANGUAGE ViewPatterns #-}
 
-module QuarkInterpreter (eval, raiseError) where
+module Quark.Eval (eval, raiseError) where
 
-import QuarkType
-import QuarkParser
+import Quark.Type
+import Quark.Parse
 import qualified Data.Map.Strict as Map
 import qualified Data.Sequence as Seq
 import Data.Sequence ((><), (<|), (|>), viewr, viewl)
