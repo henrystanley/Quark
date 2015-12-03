@@ -56,6 +56,7 @@ Lets add some strings:
     :> "quarklang" 'single quotes work too...' 'chunky bacon'
 
 Strings can be written with either single or double quotes.
+Also, strings can include escaped `"`, `'`, and `\` characters by prefixing them with `\`.
 I should point out here as well, that quark doesn't really care about line breaks.
 Strings can span multiple lines if necessary, however the REPL doesn't really allow for this.
 Here's the last, slightly more exotic, data type:
@@ -251,11 +252,6 @@ Meet, `show`
 
 `parse` and `show` are basically inverse functions.
 The only slight difference is that `parse` has that nifty error handling stuff, while `show` will always succeed.
-
-Also, one last thing to keep in mind, is that `show` has a bit of difficulty with strings when iterated.
-If we apply `show` to the string `'cat'` we get the string `'"cat"'`.
-Then if we once again apply show to `'"cat"'` we get `'""cat""'`, which parses into `[ "" cat "" ]`.
-Hopefully in the future this will be solved, but for now watch out for repeated applications of `show` to a string.
 
 
 Utilities
