@@ -1,0 +1,105 @@
+
+@import url(https://fonts.googleapis.com/css?family=Fauna+One);
+@import url(https://fonts.googleapis.com/css?family=Dosis);
+@import url(https://fonts.googleapis.com/css?family=Ubuntu+Mono);
+
+body {
+  background-color: #461045;
+}
+
+#logobox {
+  width: 600px;
+  height: 300px;
+  color: white;
+  font-family: 'Fauna One', serif;
+  margin-left: auto;
+  margin-right: auto;
+  margin-top: 50px;
+}
+
+#logobox img {
+  width: 300px;
+  height: auto;
+  float: left;
+}
+
+#logobox h1 {
+  padding-top: 85px;
+  margin: 0px;
+  font-weight: normal;
+  font-size: 1.6em;
+}
+
+#logobox h2 {
+  margin: 5px;
+  font-weight: normal;
+  font-size: 1.2em;
+}
+
+#contentbox {
+  width: 600px;
+  height: 250px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+#contentbox code {
+  font-family: 'Ubuntu Mono', ;
+  font-size: 13px;
+  padding-left: 20px;
+  display: block;
+}
+
+#links {
+  width: 146px;
+  height: 250px;
+  border-right: 1px solid white;
+  color: white;
+  font-family: 'Fauna One', serif;
+  float: left;
+}
+
+#links a {
+  color: white;
+  text-decoration: none;
+  display: block;
+  text-align: right;
+  margin-bottom: 30px;
+  margin-right: 20px;
+  transition: 0.3s;
+}
+
+#links a:hover {
+  margin-right: 15px;
+  transition: 0.3s;
+}
+
+.content {
+  margin-left: 200px;
+  color: white;
+  font-family: 'Dosis', sans-serif;
+  font-size: 15px;
+}
+
+#examples {
+  display: none;
+}
+
+#interpreters {
+  display: none;
+}
+
+#interpreters h2 {
+  font-family: 'Fauna One', serif;
+  font-weight: normal;
+  font-size: 1.2em;
+}
+
+#interpreters a {
+  color: white;
+  font-family: 'Fauna One', serif;
+  text-decoration: none;
+  display: block;
+  padding: 5px 10px;
+  font-size: 12px;
+}

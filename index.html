@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <link rel="stylesheet" href="/quark/css/style.css" rel="text/css">
+  </head>
+
+  <body>
+    <div id="logobox">
+      <img src="/quark/QuarkLogoSmall.svg">
+      <h1>Quark</h1>
+      <h2>A Functional</h2>
+      <h2>Purely Homoiconic</h2>
+      <h2>Concatenative Language</h2>
+    </div>
+    <div id="contentbox">
+      <div id="links">
+        <a href="javascript:;" onclick="view_about()">About</a>
+        <a href="javascript:;" onclick="view_examples()">Examples</a>
+        <a href="javascript:;" onclick="view_interpreters()">Interpreters</a>
+        <a href="https://github.com/henrystanley/quark">Github</a>
+        <a href="/quark/guide.html">Guide</a>
+      </div>
+      <div id="content">
+
+        <div id="about" class="content">
+          <p>
+            Quark is a microscopic stack based programming language with a focus on minimalism and flexibility.
+            Quark is concatenative and functional like Factor, has pattern matching and symbols like Erlang,
+            and has a syntax that is completely homoiconic like Lisp.
+            Quark's core principle is to bootstrap as much of the language as possible.
+            Thus the entire language is currently described by a mere, 22 functions.
+          </p>
+          <p>
+            Quark is a language for recreational programming.
+            It doesn't attempt to solve any particular problem, instead Quark optimizes for code beauty.
+            You won't get better performance, enhanced readability, or type checked safety by using Quark.
+            However Quark allows for the specification of computation in a compact and highly elegant manner.
+          </p>
+        </div>
+
+        <div id="examples" class="content">
+          <p>
+            Quark doesn't have subtraction by default, here's how it's implemented in the Prelude:
+          </p>
+          <code>
+            [ -1 * + ] :- def
+          </code>
+          <p>
+            Also, unlike its concatenative neighbors Factor or Joy, Quark doesn't have stack manipulation functions built in.
+            Instead it defines them in itself with pattern matching quotes:
+          </p>
+          <code>
+            [ x | ] :drop def <br>
+            [ x | x x ] :dup def <br>
+            [ x y z | z x y ] :rot def
+          </code>
+          <p>
+            Here's the "if" function definition from the Prelude:
+          </p>
+          <code>
+            [ [ :true x | x call ] [ z x | ] ] :if mdef
+          </code>
+        </div>
+
+        <div id="interpreters" class="content">
+          <p>
+            Quark currently has implementations in Haskell and Ruby.
+            The Haskell interpreter serves as the official reference implementation.
+          </p>
+          <h2>Quark (Haskell)</h2>
+          <a href="https://github.com/henrystanley/quark">github &#8594;</a>
+          <br>
+          <h2>RQuark (Ruby)</h2>
+          <a href="https://github.com/henrystanley/rquark">github &#8594;</a>
+          <a>or install with rubygems:</a>
+          <code>gem install rquark</code>
+        </div>
+
+      </div>
+    </div>
+  </body>
+
+  <script>
+
+    function view_about() {
+      document.getElementById("about").style["display"] = "block";
+      document.getElementById("examples").style["display"] = "none";
+      document.getElementById("interpreters").style["display"] = "none";
+    }
+
+    function view_examples() {
+      document.getElementById("about").style["display"] = "none";
+      document.getElementById("examples").style["display"] = "block";
+      document.getElementById("interpreters").style["display"] = "none";
+    }
+
+    function view_interpreters() {
+      document.getElementById("about").style["display"] = "none";
+      document.getElementById("examples").style["display"] = "none";
+      document.getElementById("interpreters").style["display"] = "block";
+    }
+
+  </script>
+
+</html>
