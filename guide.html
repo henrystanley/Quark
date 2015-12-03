@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <link rel="stylesheet" href="/Quark/css/style.css" rel="text/css">
+  <meta charset="UTF-8">
+</head>
+
+<body>
+  
+<a href="/">
+  <img src="/Quark/QuarkLogoSmall.svg" id="logo">
+</a>
+
+
+<h1 id="a-brief-andor-long-winded-introduction-to-quark">A Brief (and/or long winded) Introduction to Quark</h1>
+
+<p>Hello potential Quark user, before this guide can begin I&#8217;d like to run several health warnings by you.</p>
+
+<ul>
+  <li>Do you experience allergic reactions to brackets?</li>
+  <li>Does excessive stack manipulation make you break into a cold sweat?</li>
+  <li>Are you addicted to Lisp and/or Lisp like substances?</li>
+</ul>
+
+<p>If you meet any of these criteria, please close this txt at once.
+With that out of the way, let&#8217;s continue&#8230;</p>
+
+<p>Quark is a simple functional language, oriented towards feature bootstrapping.
+Quark like most other concatenative languages is based on a stack model.
+Like Joy or Factor, Quark uses quoted lists of functions as it&#8217;s main method of abstraction.
+Unlike Joy or Factor, these quotes can do simple pattern matching on the stack.
+This can greatly simplify Quark code in many instances.
+Quark doesn&#8217;t try to be safe, fast, or readable.
+It does however, try to be as simple, flexible, and obvious as possible.</p>
+
+<h2 id="making-repls-in-the-pond">Making REPLs in the pond</h2>
+
+<p>Assuming you managed to install Quark onto your IBM PC, PDP-11, or MIT Lisp Machine, let&#8217;s fire up the REPL.
+Quark has two modes of operation, interpreter and REPL.
+To interpret a file, give <code>quark file-to-run.qrk</code> a try.
+To start the REPL you can just type <code>quark</code> without any arguments.
+Quark automatically loads the prelude (a minimal standard library) when it starts.
+For this tutorial however, we only want the Quark core functions, so start the REPL like this:</p>
+
+<pre><code>$ quark --only-core
+</code></pre>
+
+<p>If you managed to get this far you should see a prompt that looks like this:</p>
+
+<pre><code>:&gt;
+</code></pre>
+
+<p>Let&#8217;s begin our examination of the language by looking at the data types Quark provides.
+Why don&#8217;t we start by pushing some numbers to the stack?</p>
+
+<pre><code>:&gt; 42 6.0 -0.976
+</code></pre>
+
+<p>Assuming the REPL didn&#8217;t explode, it should have echoed the numbers we just entered.
+If this is your first time using a stack based language, allow me to explain what we just did.
+Every action in Quark takes place on the data stack, which is (as you probably guessed) a stack of data.
+When the Quark interpreter receives literal values like the numbers we just entered, it pushes them to the stack.
+After you&#8217;ve entered a bit of Quark code into the REPL, the interpreter will run it, then spit back the contents of the stack.</p>
+
+<p>Now, back onto the subject of literals.
+Numbers in Quark are all Doubles.
+This simplifies things, and hopefully provides enough accuracy for most stuff.</p>
+
+<p>Lets add some strings:</p>
+
+<pre><code>:&gt; "quarklang" 'single quotes work too...' 'chunky bacon'
+</code></pre>
+
+<p>Strings can be written with either single or double quotes.
+Also, strings can include escaped <code>"</code>, <code>'</code>, and <code>\</code> characters by prefixing them with <code>\</code>.
+I should point out here as well, that quark doesn&#8217;t really care about line breaks.
+Strings can span multiple lines if necessary, however the REPL doesn&#8217;t really allow for this.
+Here&#8217;s the last, slightly more exotic, data type:</p>
+
+<pre><code>:&gt; :thing :Cows :the_color_blue
+</code></pre>
+
+<p>These are symbols, and if you&#8217;re at all familiar with Ruby you should recognize them.
+Symbols are literals used for names, keys, and other stuff.</p>
+
+<h2 id="lets-get-functional">Let&#8217;s Get Functional!</h2>
+
+<p>Functions are pretty simple too.
+Quark makes a point of implementing by default only what is absolutely necessary.
+For this reason Quark contains only a small set of built in functions (22 at the moment).
+However, composing these core functions allows us to do all kind of neat things beyond Quark&#8217;s basic functionality.</p>
+
+<p>Quark belongs to a nifty set of functional languages, known as concatenative languages.
+What this means is that Quark functions compose by default.
+While in python one might write: <code>add(sub(5, 6), 9)</code> in Quark we can write: <code>5 6 sub 9 add</code>.
+This kind of backwards function application (know as postfix notation) makes for some really clean code.
+Being concatenative, also means that every individual part of a Quark program, is itself a program (even literals).</p>
+
+<p>Enough with the rambling, on to functions!</p>
+
+<p>Here is the first of our built-ins, <code>print</code>:</p>
+
+<pre><code>:&gt; 'Hello, world!' print
+</code></pre>
+
+<p><code>print</code> takes a string off the data stack and prints it (pretty innovative).</p>
+
+<h2 id="you-can-quote-me-on-that">You can Quote me on that&#8230;</h2>
+
+<p>There&#8217;s just one more topic we have to address before we can dive into the deep end of the pool, Quotes.
+Quotes are just lists of Quark literals or functions enclosed in brackets and delimited by whitespace, observe:</p>
+
+<pre><code>:&gt; [ 4 'fifty' print :orange ]
+</code></pre>
+
+<p>Items in a quote are frozen, meaning they won&#8217;t execute until they&#8217;re out of the quote.
+Quotes serve two purposes:</p>
+
+<ol>
+  <li>As a general purpose data structure, much like lists in LISP</li>
+  <li>They allow us to compose functions, without applying them</li>
+</ol>
+
+<p>In regards to point two, allow me to introduce the <code>call</code> function.</p>
+
+<pre><code>:&gt; [ "I'm in a quote..." print ] call
+</code></pre>
+
+<p><code>call</code> takes a quote and unquotes it, by applying the quote&#8217;s internals to the stack.
+This means that <code>4</code> is the same as <code>[ 4 ] call</code>.</p>
+
+<h2 id="pattern-matching-because-if-statements-are-for-chumps">Pattern Matching, because if statements are for chumps&#8230;</h2>
+
+<p>Quotes have one more property which is responsible for a lot of Quark&#8217;s flavor, patterns.
+Anyone who has used a functional programming language like Erlang, Haskell, or OCaml is probably familiar with pattern matching.
+Quark fuses pattern matching with quotes, which let&#8217;s us do all kinds of cool stuff.
+Let&#8217;s look at an example of this.</p>
+
+<pre><code>:&gt; [ 4 | :is_four ]
+</code></pre>
+
+<p>Patterns are little sub-lists written at the beginning of quotes, and separated from the quote body with a &#8216;|&#8217; character.
+In this case our quote has a pattern of <code>4</code>.
+When a pattern equipped quote is called, it completes 3 steps:</p>
+
+<ol>
+  <li>Pop n items off the stack, where n is the length of the pattern (in the case of an empty pattern this is zero)</li>
+  <li>Check if these popped items are equal to the items in the pattern (if the pattern item is a variable any value will match)</li>
+  <li>If they don&#8217;t match push the symbol :nil to the stack and put all the items back,
+otherwise if they do, Replace bound variables in the quote body and call the quote as explained above</li>
+</ol>
+
+<p>Let&#8217;s try this out:</p>
+
+<table>
+  <tbody>
+    <tr>
+      <td>:&gt; 6 [ 5</td>
+      <td>&#8216;This is a 5&#8217; print ] call</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>This will (presuming it isn&#8217;t opposite day) <em>not</em> print &#8216;This is a 5&#8217;, instead as noted above it will put <code>:nil</code> on your stack.
+Now let&#8217;s do this:</p>
+
+<pre><code>:&gt; 'This will print!' [ x | x print ] call
+</code></pre>
+
+<p>Hopefully you can see what just happened:
+  1. We popped the string off the stack
+  2. Matched it with (and bound it to) the variable x
+  3. Replaced the x in the body with &#8216;This will print!&#8217;
+  4. Called the quote</p>
+
+<p>Let&#8217;s do another!</p>
+
+<pre><code>:&gt; :cow 'pig' [ :cow other | 'There is a cow and a ' print other print ] call
+</code></pre>
+
+<p>There are just two more quote quirks to mention.</p>
+
+<p>The first is that matching doesn&#8217;t recursively check data.
+That means, <code>[ [ a b ] | a ]</code>, won&#8217;t do what you are probably expecting if you have a Haskell background.
+For instance:</p>
+
+<pre><code>:&gt; [ :cow :pig ] [ [ :cow a ] | 'there's a cow and something else' ] call
+</code></pre>
+
+<p>The quote doesn&#8217;t match because it only matches literal quote values with <code>:cow</code> and a variable named <code>a</code>.</p>
+
+<p>The second quirk/feature is that pattern matching does identity checking.
+That means this quote won&#8217;t match:</p>
+
+<pre><code>:&gt; 4 5 [ x x | :same ] call
+</code></pre>
+
+<p>This feature allows us to define the equality function (<code>=</code>) with pattern matching.</p>
+
+<h2 id="strikeless-matches">Strikeless Matches</h2>
+
+<p>If <code>call</code> is the heart of Quark, then <code>match</code> is the brain.
+<code>match</code> is like a supped up version of <code>call</code> that takes multiple quotes (in the form of one quote holding several).
+It starts trying to match each quote from left to right, and when it finds one that does, it calls it.
+Here&#8217;s an example:</p>
+
+<pre><code>:&gt; 4 [[ 5 | :five ] [ 4 | :four ]] match
+</code></pre>
+
+<p><code>match</code> is also stealthier than <code>call</code>.
+When <code>match</code> can&#8217;t find any matching quotes it leaves nothing on the stack, instead of <code>:nil</code>.</p>
+
+<pre><code>:&gt; 3 [[ 5 | :five ] [ 4 | :four ]] match
+</code></pre>
+
+<p><code>match</code> comes in particularly handy in function definitions, which we&#8217;ll address next.</p>
+
+<h2 id="im-a-bit-def-youll-have-to-speak-up">I&#8217;m a bit def, you&#8217;ll have to speak up</h2>
+
+<p>If you&#8217;ve been following these examples your data stack is probably filled with rubbish, let&#8217;s do something about that&#8230;</p>
+
+<p>To start, here&#8217;s a new function: <code>def</code>
+<code>def</code>, expects a stack of a quote and a symbol, like this:</p>
+
+<pre><code>:&gt; [ 'apple' print ] :print_apple def
+</code></pre>
+
+<p><code>def</code>, will then create a binding between the function denoted by the symbol (in this case: <code>print_apple</code>) and the quote.
+Now to print <code>'apple'</code> you can do this:</p>
+
+<pre><code>:&gt; print_apple
+</code></pre>
+
+<p>Hooray, function definition! (You probably wondered how long it would take us to get here&#8230;)
+Now about that messy stack&#8230;</p>
+
+<p>If you&#8217;ve ever used Forth or Factor you might be familiar with the function <code>drop</code>.
+Quark has no <code>drop</code> function by default, but we can make our own with pattern matching:</p>
+
+<pre><code>:&gt; [ x | ] :drop def
+</code></pre>
+
+<p>This is precisely how <code>drop</code> is defined in the standard library.
+It takes one item, and puts back nothing.
+Still, it will be a bit tedious to type <code>drop</code> several dozen times.
+Thus we will utilize <code>match</code> from the previous chapter:</p>
+
+<pre><code>:&gt; [ [[ x | clear ]] match ] :clear def
+</code></pre>
+
+<p>We use <code>match</code> in the <code>clear</code> definition to recursively pop items off the stack until it&#8217;s empty.
+Pretty nifty&#8230;
+We can now type <code>clear</code> to destroy the entire stack.
+A bit dangerous, but I think you can handle it.</p>
+
+<h2 id="call-of-the-wild-ouroboros">Call of the wild Ouroboros</h2>
+
+<p>As you may have noticed, Quark has an exceptionally simple syntax.
+Beyond the mere aesthetic value of this design decision, Quark&#8217;s simplicity also makes parsing and serialization trivial.</p>
+
+<p>The core function <code>parse</code> enables us to safely transform a string containing Quark code, into actual Quark code.
+Check this out:</p>
+
+<pre><code>:&gt; "8 :cow ['sea']" parse
+</code></pre>
+
+<p>You might be curious as to why <code>parse</code> returns a symbol alongside the parsed code, allow me to explain.
+<code>parse</code> uses an idiom found in several other Quark functions to indicate the outcome of a function.
+Just like in IO, where things don&#8217;t always go smoothly, parsing can result in failure.
+To express this possibility, <code>parse</code> pushes an <code>:ok</code> when things went alright, and a <code>:not-ok</code> when they didn&#8217;t.
+For an example of parsing failure, if we try this:</p>
+
+<pre><code>:&gt; "[ this quote has no end" parse
+</code></pre>
+
+<p>We&#8217;ll get back a <code>:not-ok</code>.
+The nice thing about this idiom, is we can pattern match against it.
+This design pattern is basically a hacked together version of Haskell&#8217;s Maybe monad.</p>
+
+<p>So we have <code>parse</code> to turn strings into code, but what about turning code into strings?
+Meet, <code>show</code></p>
+
+<pre><code>:&gt; [ x y | 4 :nimblefish ] show print
+</code></pre>
+
+<p><code>parse</code> and <code>show</code> are basically inverse functions.
+The only slight difference is that <code>parse</code> has that nifty error handling stuff, while <code>show</code> will always succeed.</p>
+
+<h2 id="utilities">Utilities</h2>
+
+<p>In this section we&#8217;ll take a quick look at many of the lesser functions in Quark.
+To start us out, let&#8217;s check out the stuff you can do with quotes:</p>
+
+<pre><code>:&gt; [ ] 4 &lt;&lt;
+:&gt; &gt;&gt;
+</code></pre>
+
+<p>The <code>&lt;&lt;</code> and <code>&gt;&gt;</code> are inverse functions that push and pop items into quote bodies.</p>
+
+<p>For dealing with quote patterns, we have a second pair of inverse functions, <code>@+</code> and <code>@-</code>.
+<code>@-</code> splits a quote with a pattern into two quotes with bodies containing the pattern and body of the original quote.
+<code>@+</code> does the opposite, by joining two quote&#8217;s bodies into a single quote with the first as a body and the second as a head.</p>
+
+<pre><code>:&gt; [ 1 2 3 | :a :b :c ] @-
+:&gt; @+
+</code></pre>
+
+<p>Moving on&#8230; (by the way, between these examples you might want to clear your stack):</p>
+
+<pre><code>:&gt; 16 4 4 * +
+:&gt; 2 /
+:&gt; 17 &lt;
+</code></pre>
+
+<p>Arithmetic! What wonders lie in store next?
+You may have noticed that Quark doesn&#8217;t have subtraction by default.
+Quark does however have negative numbers, so subtraction is implemented like this:</p>
+
+<pre><code>:&gt; [ -1 * + ] :- def
+:&gt; 7 4 -
+</code></pre>
+
+<p>Now how about string manipulation?
+The function <code>weld</code> will concatenate two strings.
+Also, <code>chars</code> will break a string into a quote containing each of the string&#8217;s characters.</p>
+
+<pre><code>:&gt; "Tee" " Zeit!" weld
+:&gt; "abc" chars
+</code></pre>
+
+<p>This concludes our function blitz, now on to interacting with the outside world&#8230;</p>
+
+<h2 id="io-io-its-off-to-the-filesystem-i-go">IO, IO, it&#8217;s off to the filesystem I go&#8230;</h2>
+
+<p>We&#8217;ve already met <code>print</code>, but as with most programming languages, Quark has more to offer in terms of input and output.
+As a warning, I&#8217;m not entirely satisfied with the current lineup of io functions.
+For example, there currently isn&#8217;t a way to do networking, which rules out doing serverside code with Quark.
+In the future I (or somebody more clever) may generalize or tweak these functions, to be more flexible.
+Anyway, here are the two file functions:</p>
+
+<pre><code>:&gt; 'potato.txt' read
+:&gt; "Potatoes are covered in eyes, like a Shoggoth!" 'potato_2.txt' write
+</code></pre>
+
+<p>There you have it, reading files and writing files, with <code>read</code> and <code>write</code>.
+Not exactly rocket science.</p>
+
+<p>There&#8217;s also <code>cmd</code>:</p>
+
+<pre><code>:&gt; 'ls ~/shoggoth_pics' cmd
+</code></pre>
+
+<p>As you can see, it runs a command and puts the output as a string back on the stack.
+This function is blocking, so your program will wait for the command to finish (and if it never does, you&#8217;re out of luck).</p>
+
+<p>You may have noticed that all of these function add a <code>:ok</code> to your stack, just like <code>eval</code>.
+This allows us to check if the operation succeeded.
+If it didn&#8217;t these functions will return a <code>:not-ok</code>.</p>
+
+<p>The REPL prints out the stack by default, but there may be a time when you want to do this manually.
+For that you can use <code>.</code> which prints out the entire stack.</p>
+
+<pre><code>:&gt; 324 :cabbage [ 'meow' ] .
+</code></pre>
+
+<p>Last, but maybe not least, we have <code>exit</code>:</p>
+
+<pre><code>:&gt; [ [[ :cow | "No Cows!" print exit ]] match ] :no_cows def
+:&gt; :cow no_cows
+</code></pre>
+
+<p>Now if you entered this into the REPL, you are no doubt unimpressed, mainly because it didn&#8217;t exit.
+This is because <code>exit</code> only exits in interpreter mode.
+In REPL mode (because it gracefully handles errors) you&#8217;ll have to enter <code>*q</code> (no whitespace) to exit.</p>
+
+<h2 id="special-functions">&#8220;Special&#8221; Functions</h2>
+
+<p>The Quark interpreter also implements two magic REPL only functions.</p>
+
+<p>As we saw above, we can quit the REPL by entering <code>*q</code>.</p>
+
+<p>Also available is the REPL function <code>*f</code>.
+Typed alone <code>*f</code> will print out all user defined functions and their accompanying binding.
+<code>*f</code> can also target a specific function to print out.
+For example you can use, <code>*f drop</code>, to see the current definition for <code>drop</code>.</p>
+
+<h2 id="hindleymilner">Hindley–Milner!?</h2>
+
+<p>Despite being a proponent of strongly typed languages myself, Quark is as dynamic as they come.
+Quark does have a type system though, as fluid and dangerous as it may be.
+At runtime Quark will check to make sure core functions are being applied to the right arguments.
+Besides, that the type system tries to stay out of the way as much as it can.</p>
+
+<p>Here&#8217;s our final function, <code>type</code>.
+<code>type</code> returns a symbol which corresponds with the type of the value:</p>
+
+<pre><code>:&gt; "Miskatonic University" type
+:&gt; 5 type
+:&gt; :dunwich type
+:&gt; [ 1 8 9 0 ] type
+</code></pre>
+
+<p>Because of <code>type</code> it&#8217;s possible to build a fancier typechecking system in Quark.
+In the future hopefully the prelude will have one included, but for now you&#8217;ll have to write your own.</p>
+
+<h2 id="modules">Modules</h2>
+<p>I have to confess that the title of this chapter is a bit of a lie.
+Unlike proper languages, Quark doesn&#8217;t have a fancy module system.
+It can be handy to separate programs into multiple files though&#8230;</p>
+
+<p>Requiring files in Quark can be expressed as a composition of two functions we&#8217;ve already met: <code>load</code> and <code>eval</code>.
+Your Quark distribution should have come with the standard library, so why don&#8217;t we load it up?
+Hopefully you put it somewhere accessible.</p>
+
+<pre><code>:&gt; '~/quark/prelude.qrk' load eval
+</code></pre>
+
+<p>Now presuming you have <code>:ok</code> on your stack, you can play with all the goodies in there.
+Check out the API documentation to figure out how all this stuff works.
+For convenience&#8217;s sake Quark will use the prelude by default, so you won&#8217;t have to add <code>load eval</code> to all your scripts.</p>
+
+<h2 id="tips">Tips</h2>
+
+<p>Here are some things to remember when writing Quark code:</p>
+
+<ol>
+  <li>
+    <p>Factor, factor, factor, and then factor again.
+Because Quark is a concatenative language factoring is very easy.
+Anytime you find yourself reusing some behavior, make it into a new function.</p>
+  </li>
+  <li>
+    <p>Non-stateful is better than stateful.
+While it&#8217;s possible to reassign atoms, try to structure your code so that this isn&#8217;t necessary.</p>
+  </li>
+  <li>
+    <p>Using quote patterns is better than excessive use of stack manipulation functions.
+This is a major problem for Forth and Factor code, which is often littered with <code>swap</code>s and <code>rot</code>s.
+If you find yourself using lots of these functions, re-factor using pattern variables instead.</p>
+  </li>
+  <li>
+    <p>Be creative with function names.
+Quark lets you use all kinds of symbols in function names, use that to your advantage.
+End boolean returning functions with <code>?</code> or use <code>+</code> to indicate an enhanced version of a function.</p>
+  </li>
+</ol>
+
+<h2 id="syntax">Syntax</h2>
+
+<pre><code>number ::= /-?[0-9](.[0-9])?/
+
+atom ::= /[^0-9\[\]|:"'\s\n\t]+/
+
+symbol ::= &lt;':'&gt; &lt;atom&gt;
+
+string ::= /'[^']*'/ | /"[^"]*"/
+
+quote ::= &lt;'['&gt; ?(&lt;qexpr&gt; &lt;'|'&gt;) ?(&lt;qexpr&gt;) &lt;']'&gt;
+
+qexpr ::= &lt;number&gt; | &lt;atom&gt; | &lt;symbol&gt; | &lt;string&gt; | &lt;quote&gt; | &lt;qexpr&gt; &lt;qexpr&gt;
+</code></pre>
+
+<h2 id="flaws">Flaws</h2>
+
+<p>By the end of this tutorial you&#8217;ve probably noticed several things you don&#8217;t like about Quark.
+Maybe a bump in the design here, or a discolored corner over there&#8230;
+Well, I&#8217;m not one to hide the flaws in my creations&#8230;
+You hold the wounds open, and I&#8217;ll get the salt.</p>
+
+<p>I am writing this small section after trying to bulk out the standard library with some new utility functions.
+Using one&#8217;s language is always the bane of any language designer.
+It makes you furrow your brow and go: &#8220;Actually this is pretty rubbish&#8230;&#8221;
+In actuality don&#8217;t think Quark is rubbish, but it has made me notice some rough edges.</p>
+
+<p>The biggest issue I&#8217;m sure you&#8217;ll face programming in Quark, is all the leaky abstractions.
+Quark is a very mechanical language, in regards to it&#8217;s evaluation.
+It also has a large dependence on state, because of the stack.
+Quark almost feels at times, like a big soft turing tarpit.
+It has enough usability that we&#8217;re not talking about Unlambda here, but it can still be a pain.</p>
+
+<p>Another issue I&#8217;ve noticed is that Quark suffers from the same syntactic complexity found in Lisp.
+Lisp proponents are eager to discount how painful it is to use a language with super regular syntax, I&#8217;m not so proud.
+Keeping tabs on where you are in a match statement can be brutal, and is really only resolved by counting brackets.</p>
+
+<p>Quark is also (at the moment) quite slow.
+This is less of a flaw in the language, a more of a problem with the current implementation.
+At this point in time the interpreter runs a script straight from the parsed abstract syntax tree.
+Perhaps in the future a fast VM, or even a proper compiler, might solve this.
+For now though, expect to wait two or three minutes when dealing with quotes containing thousands of items.</p>
+
+<h2 id="the-end">The End</h2>
+
+<p>Quark gets it&#8217;s name from an analogy.
+In modern particle physics there are believed to be six elementary particles known as quarks.
+These quarks (along with the leptons) compose together to create what we consider matter.
+In Quark the key idea is that one can encode a vast amount of programming behavior with a small set of core functions.
+Through compositions of these core functions, all the features of the language can be implemented.</p>
+
+
+</body>
+
+</html>
