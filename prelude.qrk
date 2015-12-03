@@ -10,6 +10,8 @@
 
 [ call ] :; def
 
+[ show-each pop,parse,call ] :~ def
+
 
 "## Stack Manipulation Operators ##" comment
 
@@ -112,3 +114,7 @@
 [ [] rot [ dup [ << ] dip ++ ] times-do drop ] :range def
 
 [ 1 swap range ] :iota def
+
+[[ [] | [] ] [ >> show [ show-each ] dip << ]] :show-each mdef
+
+[[ [] | ] [ >> parse drop swap [ call ] dip pop,parse,call ]] :pop,parse,call mdef
