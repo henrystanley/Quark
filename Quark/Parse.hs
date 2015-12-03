@@ -41,22 +41,23 @@ qsym = do
 
 --- Strings ---
 
--- string delimited by double quotes
-qstrDouble = do
-  char '"'
-  text <- many $ noneOf ['"']
-  char '"'
-  return $ QStr text
+-- escaped chars in strings
+qEsc :: Char -> Char -> Parsec String () Char
+qEsc c r = do
+  char '\\'
+  char c
+  return r
 
--- string delimited by single quotes
-qstrSingle = do
-  char '\''
-  text <- many $ noneOf ['\'']
-  char '\''
-  return $ QStr text
+-- parser for strings
+qStrConstructer :: Char -> Parsec String () QItem
+qStrConstructer delim = do
+  char delim
+  text <- manyTill strChars (char delim)
+  return . QStr $ text
+  where strChars = try (qEsc '\\' '\\') <|> (qEsc delim delim) <|> anyChar
 
 -- string delimited by either double or single quotes
-qstr = try qstrDouble <|> qstrSingle
+qstr = (qStrConstructer '"') <|> (qStrConstructer '\'')
 
 
 --- Quotes --
