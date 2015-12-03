@@ -16,6 +16,7 @@ data QVM = QVM { stack :: QStack
 type IState = IO (Maybe QVM)
 
 -- a function that maps a QVM to an IO (Maybe QVM)
+-- all quark core functions have this type
 type QFunc = QVM -> IState
 
 -- a base quark vm, obviously all quark programs start with this
@@ -33,3 +34,7 @@ dropVM n vm = vm { stack = drop n (stack vm) }
 -- push a qitem to a vm's stack
 pushVM :: QItem -> QVM -> QVM
 pushVM x vm = vm { stack = x : (stack vm) }
+
+-- gets a runtime defined function, if no such function exists returns `Nothing`
+getDef :: QVM -> FuncName -> Maybe QItem
+getDef vm fname = Map.lookup fname (binds vm)
