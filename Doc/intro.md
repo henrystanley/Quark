@@ -8,7 +8,7 @@ Hello potential Quark user, before this guide can begin I'd like to run several 
   - Does excessive stack manipulation make you break into a cold sweat?
   - Are you addicted to Lisp and/or Lisp like substances?
 
-If you meet any of these criteria, please close this txt at once.
+If you meet any of these criteria, please close this guide at once.
 With that out of the way, let's continue...
 
 Quark is a simple functional language, oriented towards feature bootstrapping.
@@ -102,7 +102,7 @@ Items in a quote are frozen, meaning they won't execute until they're out of the
 Quotes serve two purposes:
 
   1. As a general purpose data structure, much like lists in LISP
-  2. They allow us to compose functions, without applying them
+  2. As a means to compose functions, without applying them
 
 In regards to point two, allow me to introduce the `call` function.
 
@@ -133,7 +133,7 @@ When a pattern equipped quote is called, it completes 3 steps:
 
 Let's try this out:
 
-  :> 6 [ 5 | 'This is a 5' print ] call
+    :> 6 [ 5 | 'This is a 5' print ] call
 
 This will (presuming it isn't opposite day) *not* print 'This is a 5', instead as noted above it will put `:nil` on your stack.
 Now let's do this:
@@ -141,10 +141,11 @@ Now let's do this:
     :> 'This will print!' [ x | x print ] call
 
 Hopefully you can see what just happened:
-  1. We popped the string off the stack
-  2. Matched it with (and bound it to) the variable x
-  3. Replaced the x in the body with 'This will print!'
-  4. Called the quote
+
+    1. We popped the string off the stack
+    2. Matched it with (and bound it to) the variable x
+    3. Replaced the x in the body with 'This will print!'
+    4. Called the quote
 
 Let's do another!
 
@@ -263,7 +264,7 @@ To start us out, let's check out the stuff you can do with quotes:
     :> [ ] 4 <<
     :> >>
 
-The `<<` and `>>` are inverse functions that push and pop items into quote bodies.
+`<<` and `>>` are inverse functions that push and pop items into quote bodies.
 
 For dealing with quote patterns, we have a second pair of inverse functions, `@+` and `@-`.
 `@-` splits a quote with a pattern into two quotes with bodies containing the pattern and body of the original quote.
@@ -317,7 +318,7 @@ There's also `cmd`:
 As you can see, it runs a command and puts the output as a string back on the stack.
 This function is blocking, so your program will wait for the command to finish (and if it never does, you're out of luck).
 
-You may have noticed that all of these function add a `:ok` to your stack, just like `eval`.
+You may have noticed that all of these function add a `:ok` to your stack, just like `parse`.
 This allows us to check if the operation succeeded.
 If it didn't these functions will return a `:not-ok`.
 
@@ -375,15 +376,19 @@ I have to confess that the title of this chapter is a bit of a lie.
 Unlike proper languages, Quark doesn't have a fancy module system.
 It can be handy to separate programs into multiple files though...
 
-Requiring files in Quark can be expressed as a composition of two functions we've already met: `load` and `eval`.
+Requiring files in Quark can be expressed as a composition of functions we've already met.
+Let's define an `import` function to do this:
+
+    :> [ load [ :ok | parse ] call [ :ok | call ] call ] :import def
+
 Your Quark distribution should have come with the standard library, so why don't we load it up?
 Hopefully you put it somewhere accessible.
 
-    :> '~/quark/prelude.qrk' load eval
+    :> '~/quark/prelude.qrk' import
 
-Now presuming you have `:ok` on your stack, you can play with all the goodies in there.
+Now presuming you don't have `:nil` on your stack, you can play with all the goodies in there.
 Check out the API documentation to figure out how all this stuff works.
-For convenience's sake Quark will use the prelude by default, so you won't have to add `load eval` to all your scripts.
+For convenience's sake Quark will use the prelude by default, so you won't have to add `import` to all your scripts.
 
 
 Tips
@@ -410,7 +415,7 @@ Here are some things to remember when writing Quark code:
 Syntax
 ------
 
-    number ::= /-?[0-9](.[0-9])?/
+    number ::= /-?[0-9]+(.[0-9]+)?/
 
     atom ::= /[^0-9\[\]|:"'\s\n\t]+/
 
