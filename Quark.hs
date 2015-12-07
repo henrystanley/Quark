@@ -102,6 +102,6 @@ recEval :: IO (Maybe QVM) -> IO (Maybe QVM)
 recEval iovm = do
   vm <- iovm
   case vm of
-    Just (QVM _ (viewl -> Seq.EmptyL) _) -> return vm
+    Just (prog -> (viewl -> Seq.EmptyL)) -> return vm
     Just x -> recEval $ eval x
     Nothing -> return Nothing

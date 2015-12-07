@@ -26,22 +26,22 @@ qPureFunc sig f name = qFunc sig (return . Just . f) name
 -- makes a (QItem -> QItem) into a quark function
 qOneToOne :: QTypeSig -> (QItem -> QItem) -> FuncName -> QFunc
 qOneToOne sig f name = qPureFunc sig f' name
-  where f' (QVM (x : xs) prog binds) = QVM ((f x) : xs) prog binds
+  where f' vm = let (x : xs) = stack vm in vm { stack = (f x) : xs }
 
 -- makes a (QItem -> QItem -> QItem) into a quark function
 qTwoToOne :: QTypeSig -> (QItem -> QItem -> QItem) -> FuncName -> QFunc
 qTwoToOne sig f name = qPureFunc sig f' name
-  where f' (QVM (x : y : xs) prog binds) = QVM (f x y : xs) prog binds
+  where f' vm = let (x : y : xs) = stack vm in vm { stack = (f x y) : xs }
 
 -- makes a (QItem -> [QItem]) into a quark function
 qOneToMulti :: QTypeSig -> (QItem -> [QItem]) ->  FuncName -> QFunc
 qOneToMulti sig f name = qPureFunc sig f' name
-  where f' (QVM (x : xs) prog binds) = QVM ((f x) ++ xs) prog binds
+  where f' vm = let (x : xs) = stack vm in vm { stack = (f x) ++ xs }
 
 -- makes a numeric quark function
 qNumFunc :: (Double -> Double -> Double) -> FuncName -> QFunc
 qNumFunc f name = qPureFunc [Num, Num] f' name
-  where f' (QVM (QNum a : QNum b : stack) prog binds) = QVM (QNum (f a b) : stack) prog binds
+  where f' vm = let (QNum a : QNum b : xs) = stack vm in vm { stack = (QNum (f a b)) : xs }
 
 
 -- Misc

@@ -95,7 +95,8 @@ qparsei (QStr x) = case qParse x of
 -- Scary Impure Functions:
 
 -- calls a quote
-qcall (QVM (quote : stack) prog binds) = tryQuote quote $ QVM stack prog binds
+qcall vm = tryQuote quote $ vm { stack = stack' }
+  where (quote : stack') = stack vm
 
 -- calls the first quote in a list of quotes that has a matching pattern
 qmatch vm = (tryQuotes quotes) vm { stack = stack' }
@@ -108,34 +109,38 @@ qmatch vm = (tryQuotes quotes) vm { stack = stack' }
           (_ :< _) -> (\_ -> raiseError "Non quote value found in `match` call")
 
 -- pops a string and prints it without a linebreak
-qprint (QVM ((QStr x) : stack) prog binds) = putStr x >> (return . Just $ QVM stack prog binds)
+qprint vm = putStr x >> (return . Just $ vm { stack = stack' })
+  where ((QStr x) : stack') = stack vm
 
 -- prints the contents of the entire stack with a linebreak
 qprintstack vm = (putStrLn . intercalate " " . map (serializeQ 0) . reverse . stack) vm >> (return . Just $ vm)
 
 -- pops a string and loads the file with this filename, then pushes back the contents of the file as a string
-qload (QVM ((QStr filename) : stack) prog binds) = do
+qload vm = do
   read_str <- try (readFile filename) :: IO (Either SomeException String)
   let stack_top = case read_str of {
     Left _ -> [QSym "not-ok"];
     Right s -> [QSym "ok", QStr s]; }
-  return . Just $ QVM (stack_top ++ stack) prog binds
+  return . Just $ vm { stack = stack_top ++ stack' }
+  where ((QStr filename) : stack') = stack vm
 
 -- pops two strings, uses the first as a filename to save as and the second as the file contents
-qwrite (QVM ((QStr filename) : (QStr toWrite) : stack) prog binds) = do
+qwrite vm = do
   wrote <- try (writeFile filename toWrite) :: IO (Either SomeException ())
   let stack_top = case wrote of {
     Left _ -> [QSym "not-ok"];
     Right _ -> [QSym "ok"]; }
-  return . Just $ QVM (stack_top ++ stack) prog binds
+  return . Just $ vm { stack = stack_top ++ stack' }
+  where ((QStr filename) : (QStr toWrite) : stack') = stack vm
 
 -- pops a string and runs it as a shell command, pushes the output of the command as a string
-qcmd (QVM ((QStr cmd) : stack) prog binds) = do
+qcmd vm = do
   result <- try (System.Process.readCreateProcess (System.Process.shell cmd) "") :: IO (Either SomeException String)
   let stack_top = case result of {
     Left _ -> [QSym "not-ok"];
     Right s -> [QSym "ok", QStr s]; }
-  return . Just $ QVM (stack_top ++ stack) prog binds
+  return . Just $ vm { stack = stack_top ++ stack' }
+  where ((QStr cmd) : stack') = stack vm
 
 -- exits the interpreter (only if in script mode)
 qexit _ = return Nothing
