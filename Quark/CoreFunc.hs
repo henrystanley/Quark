@@ -86,8 +86,8 @@ qweld (QStr a) (QStr b) = QStr $ b ++ a
 -- also triggers inlining for functions
 qdef vm = foldr updateInline vm' to_inline
   where ((QSym fname) : f : stack') = stack vm
-        to_inline = changedDefs [fname] vm
-        i_binds' = foldr (\ib f -> Map.insert f Nothing ib) (i_binds vm) to_inline
+        to_inline = changedDefs vm [fname]
+        i_binds' = foldr (\f ib -> Map.insert f Nothing ib) (i_binds vm) to_inline
         vm' = vm { stack = stack'
                  , binds = Map.insert fname f (binds vm)
                  , i_binds = i_binds'

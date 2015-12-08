@@ -62,6 +62,7 @@ qRepl vm = do
     ["*q"] -> return ()
     ["*f"] -> vm >>= displayFunctions >> qRepl vm
     ["*f", f] -> vm >>= (displayFunction f) >> qRepl vm
+    ["*i", f] -> vm >>= (displayInlineFunction f) >> qRepl vm
     otherwise -> do
       reduced <- runQuark False vm input
       case reduced of
@@ -84,6 +85,12 @@ displayFunctions vm = mapM putStr toPrint >> return ()
 displayFunction :: String -> QVM -> IO ()
 displayFunction fname vm = putStrLn $ case Map.lookup fname (binds vm) of
   Just func -> serializeQ 0 func
+  Nothing -> "No such function: " ++ fname
+
+-- print a specific runtime defined function in it's inlined form from a QVM
+displayInlineFunction :: String -> QVM -> IO ()
+displayInlineFunction fname vm = putStrLn $ case Map.lookup fname (i_binds vm) of
+  Just (Just func) -> serializeQ 0 func
   Nothing -> "No such function: " ++ fname
 
 
