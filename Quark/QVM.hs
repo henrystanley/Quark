@@ -6,10 +6,11 @@ import qualified Data.Map as Map
 
 --- Quark State Type ---
 
--- a type containing a data stack, a list of quark items to evaluate, and an index of functions
+-- a type containing a data stack, a list of quark items to evaluate, and an index of functions (with their inlined versions)
 data QVM = QVM { stack :: QStack
                , prog :: QProg
                , binds :: QLib
+               , i_binds :: Map.Map FuncName (Maybe QItem)
                } deriving (Show, Eq)
 
 -- interpreter state
@@ -21,7 +22,7 @@ type QFunc = QVM -> IState
 
 -- a base quark vm, obviously all quark programs start with this
 emptyQVM :: QVM
-emptyQVM = QVM [] Seq.empty Map.empty
+emptyQVM = QVM [] Seq.empty Map.empty Map.empty
 
 -- concat items to a quark vm's evaluation stack
 pushProgQVM :: QVM -> QProg -> QVM
@@ -37,4 +38,4 @@ pushVM x vm = vm { stack = x : (stack vm) }
 
 -- gets a runtime defined function, if no such function exists returns `Nothing`
 getDef :: QVM -> FuncName -> Maybe QItem
-getDef vm fname = Map.lookup fname (binds vm)
+getDef vm fname = (\(Just f) -> f) $ Map.lookup fname (i_binds vm)

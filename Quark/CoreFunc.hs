@@ -10,6 +10,7 @@ import Quark.CoreFuncUtils
 import Quark.QVM
 import Quark.Errors
 import Quark.QuoteEval
+import Quark.Inline
 import Data.List
 import qualified Data.Map.Strict as Map
 import qualified Data.Sequence as Seq
@@ -82,8 +83,15 @@ qchars (QStr xs) = QQuote Seq.empty strChars
 qweld (QStr a) (QStr b) = QStr $ b ++ a
 
 -- pops a symbol and quote. binds the symbol to the quote as a function in the vm
-qdef vm = vm { stack = stack', binds = Map.insert fname f (binds vm) }
+-- also triggers inlining for functions
+qdef vm = foldr updateInline vm' to_inline
   where ((QSym fname) : f : stack') = stack vm
+        to_inline = changedDefs [fname] vm
+        i_binds' = foldr (\ib f -> Map.insert f Nothing ib) (i_binds vm) to_inline
+        vm' = vm { stack = stack'
+                 , binds = Map.insert fname f (binds vm)
+                 , i_binds = i_binds'
+                 }
 
 -- parses a string containing quark code
 qparsei (QStr x) = case qParse x of
