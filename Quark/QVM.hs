@@ -38,4 +38,8 @@ pushVM x vm = vm { stack = x : (stack vm) }
 
 -- gets a runtime defined function, if no such function exists returns `Nothing`
 getDef :: QVM -> FuncName -> Maybe QItem
-getDef vm fname = (Map.lookup fname (i_binds vm)) >>= id
+getDef vm fname = Map.lookup fname (binds vm)
+
+-- gets a runtime defined function in its inlined form, if no such function exists returns `Nothing`
+getIDef :: QVM -> FuncName -> Maybe QItem
+getIDef vm fname = (Map.lookup fname (i_binds vm)) >>= id
