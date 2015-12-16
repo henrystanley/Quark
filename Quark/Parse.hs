@@ -1,10 +1,12 @@
 module Quark.Parse (qParse) where
 
+import Quark.Type
+import Quark.QuoteUtils
 import Text.Parsec
 import Text.Parsec ((<|>))
 import qualified Data.Sequence as Seq
 import qualified Data.Map as Map
-import Quark.Type
+
 
 --- Numbers ---
 
@@ -30,7 +32,7 @@ qnum = do
 -- plain token used for function names and variables
 qatom = do
   value <- many1 $ noneOf (['0'..'9'] ++ "'\":\\[]|\n\t ")
-  return $ QAtom value
+  return $ QFunc value
 
 -- token with a ':' in front used for symbols
 qsym = do
@@ -77,7 +79,7 @@ qquote = do
   quote <- qtokens
   qsep
   char ']'
-  return $ QQuote (Seq.fromList args) (Seq.fromList quote)
+  return $ addVars $ QQuote (Seq.fromList args) (Seq.fromList quote)
 
 
 --- Syntatic Structure ---

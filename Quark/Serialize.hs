@@ -14,10 +14,11 @@ replaceChar oldC newC str = concat $ map (\c -> if c == oldC then newC else [c])
 -- if `n` is 0 no shortening will occur
 serializeQ :: Int -> QItem -> String
 serializeQ _ (QNum x) = if (ceiling x) == (floor x) then (show . floor) x else show x
-serializeQ _ (QAtom x) = x
+serializeQ _ (QFunc x) = x
+serializeQ _ (QVar x) = x
 serializeQ _ (QSym x) = ':' : x
 serializeQ _ (QStr x) = "\"" ++ escaped ++ "\""
-  where escaped = replaceChar '"' "\\\"" $ replaceChar '\\' "\\\\" x 
+  where escaped = replaceChar '"' "\\\"" $ replaceChar '\\' "\\\\" x
 serializeQ n (QQuote pattern body) = "[ " ++ patternStr ++ bodyStr ++ " ]"
   where getItems = if n == 0 then id else take n
         ellipsis xs = if (Seq.length xs > n) && (n /= 0) then " ..." else ""

@@ -26,7 +26,7 @@ import Data.Maybe
 -- otherwise, push the top item to the data stack
 eval :: QVM -> IState
 eval vm = case viewl (prog vm) of
-  ((QAtom f) :< sq) -> (getFunc vm f) $ vm { prog = sq }
+  ((QFunc f) :< sq) -> (getFunc vm f) $ vm { prog = sq }
   (x :< sq) -> return . Just $ vm { stack = x : (stack vm), prog = sq }
 
 -- tries to retrieve a core or runtime defined function

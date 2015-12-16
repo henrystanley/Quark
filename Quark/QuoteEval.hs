@@ -26,7 +26,7 @@ callQuote prog vars vm = return . Just $ pushProgQVM vm $ fmap (qSub vars) prog
 
 -- substitutes pattern terms
 qSub :: QLib -> QItem -> QItem
-qSub vars (QAtom a) = case Map.lookup a vars of { Just x -> x; Nothing -> QAtom a; }
+qSub vars (QVar a) = case Map.lookup a vars of { Just x -> x; Nothing -> QVar a; }
 qSub vars (QQuote p b) = QQuote (fmap (qSub vars) p) (fmap (qSub vars) b)
 qSub _ x = x
 
@@ -37,7 +37,7 @@ patternMatch pattern stack = qmatch Map.empty pattern stack
   where qmatch vars pattern stack = case (viewr pattern, stack) of
           (Seq.EmptyR, _) -> Just vars
           (_, []) -> Nothing
-          ((sq :> (QAtom x)), (y : ys)) -> if Map.member x vars
+          ((sq :> (QVar x)), (y : ys)) -> if Map.member x vars
             then if (vars Map.! x) == y then qmatch vars sq ys else Nothing
             else qmatch (Map.insert x y vars) sq ys
           ((sq :> x), (y : ys)) -> if x == y then qmatch vars sq ys else Nothing

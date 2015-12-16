@@ -7,7 +7,8 @@ import Quark.Type
 -- these are the types for the internal quark type system
 -- kind of meta...
 data QType = Num
-           | Atom
+           | Func
+           | Var
            | Str
            | Sym
            | Quote
@@ -20,7 +21,8 @@ type QTypeSig = [QType]
 -- converts a quark value into a quark type
 qtype :: QItem -> QType
 qtype (QNum _) = Num
-qtype (QAtom _) = Atom
+qtype (QFunc _) = Func
+qtype (QVar _) = Var
 qtype (QSym _) = Sym
 qtype (QStr _) = Str
 qtype (QQuote _ _) = Quote
