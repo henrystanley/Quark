@@ -14,11 +14,13 @@ import Quark.Inline
 import Data.List
 import qualified Data.Map.Strict as Map
 import qualified Data.Sequence as Seq
+import qualified Data.Set as Set
 import Data.Sequence ((><), (<|), (|>), viewr, viewl)
 import Data.Sequence (ViewL(..))
 import Data.Sequence (ViewR(..))
 import System.Process
 import Control.Exception
+
 
 -- Core Function Dispatch
 
@@ -84,14 +86,11 @@ qweld (QStr a) (QStr b) = QStr $ b ++ a
 
 -- pops a symbol and quote. binds the symbol to the quote as a function in the vm
 -- also triggers inlining for functions
-qdef vm = foldr updateInline vm' to_inline
+qdef vm = Set.foldr updateInline vm'' to_inline
   where ((QSym fname) : f : stack') = stack vm
-        to_inline = changedDefs vm [fname]
-        i_binds' = foldr (\f ib -> Map.insert f Nothing ib) (i_binds vm) to_inline
-        vm' = vm { stack = stack'
-                 , binds = Map.insert fname f (binds vm)
-                 , i_binds = i_binds'
-                 }
+        to_inline = changedDefs vm fname
+        vm' = vm { stack = stack', binds = Map.insert fname f (binds vm) }
+        vm'' = markForInlineUpdate vm' fname
 
 -- parses a string containing quark code
 qparsei (QStr x) = case qParse x of

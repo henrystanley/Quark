@@ -34,6 +34,6 @@ eval vm = case viewl (prog vm) of
 getFunc :: QVM -> FuncName -> QFunc
 getFunc vm fname = case Map.lookup fname coreFunc of
   Just f -> f
-  Nothing -> case getDef vm fname of
+  Nothing -> case getIDef vm fname of
     Just f -> tryQuote f
     Nothing -> (\_ -> raiseError ("No such function: " ++ fname))

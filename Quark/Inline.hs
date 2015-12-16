@@ -28,13 +28,13 @@ getAtoms = Set.fromList . map (\(QAtom a) -> a) . filter isAtom . toList
 
 -- returns an AtomSet of atoms from QQuote bodies (recursively searches QQuotes)
 getBodyAtoms :: QItem -> AtomSet
-getBodyAtoms (QQuote _ body) = Set.unions $ fmap getBodyAtoms body
+getBodyAtoms (QQuote _ body) = Set.unions $ map getBodyAtoms . toList $ body
 getBodyAtoms (QAtom a) = Set.singleton a
 getBodyAtoms _ = Set.empty
 
 -- returns an AtomSet of vars in a QItem (recursively searches QQuotes)
 getVars :: QItem -> AtomSet
-getVars (QQuote pattern body) = Set.union (getAtoms pattern) (Set.unions $ fmap getVars body)
+getVars (QQuote pattern body) = Set.union (getAtoms pattern) (Set.unions $ map getVars . toList $ body)
 getVars _ = Set.empty
 
 -- returns an AtomSet of functions in a QItem (recursively searches QQuotes)
@@ -66,10 +66,10 @@ nonCoreFuncs = Set.filter (not . isCoreFunc)
 -- checks if a function is recursive or co-recursive
 isRecursive :: QVM -> FuncName -> Bool
 isRecursive vm func = isRecursive' (Set.singleton func)
-  where isRecursive' funcs = if Set.null $ Set.intersect funcDeps funcs
-          then and $ map (\fDep -> isRecursive' $ Set.insert fDep funcs) funcDeps
+  where isRecursive' funcs = if Set.null $ Set.intersection funcDeps funcs
+          then or $ Set.map (\fDep -> isRecursive' $ Set.insert fDep funcs) funcDeps
           else True
-          where funcDeps = nonCoreFuncs . Set.unions . getDefs $ funcs
+          where funcDeps = nonCoreFuncs . Set.unions . Set.toList . Set.map getFuncs . getDefs vm $ funcs
 
 -- filters recursive functions out of an AtomSet
 nonRecursive :: QVM -> AtomSet -> AtomSet
@@ -81,7 +81,7 @@ isDefined :: QVM -> FuncName -> Bool
 isDefined vm = isJust . getDef vm
 
 -- filters undefined functions out of an AtomSet
-onlyDefined :: AtomSet -> AtomSet
+onlyDefined :: QVM -> AtomSet -> AtomSet
 onlyDefined vm = Set.filter (isDefined vm)
 
 
@@ -92,70 +92,57 @@ inlinableFuncs vm = nonRecursive vm . onlyDefined vm . nonCoreFuncs . getFuncs
 
 --- Inlining ---
 
-
 -- recursively calculates which functions will be need to be re-inlined if a function is updated
 changedDefs :: QVM -> FuncName -> AtomSet
 changedDefs vm func = changedDefs' $ Set.singleton func
-  where changedDefs' funcs = if funcs == funcs' then funcs else changedDefs' $ Set.union funcs funcs'
-          where funcs' =
+  where changedDefs' funcs = if funcs == funcs' then funcs' else changedDefs' funcs'
+          where funcs' = Set.union funcs $ Set.fromList . Map.keys $ dependent_funcs
+                dependent_funcs = Map.filter (not . Set.null . Set.intersection funcs . getFuncs) (binds vm)
 
+-- sets i_bind val to Nothing for inlined functions that need updating
+markForInlineUpdate :: QVM -> FuncName -> QVM
+markForInlineUpdate vm func = vm { i_binds = Set.foldr insert_nothing (i_binds vm) $ changedDefs vm func }
+  where insert_nothing f m = Map.insert f Nothing m
 
-  if funcs == funcs' then funcs else changedDefs vm funcs' ++ funcs
-  where funcs' = Map.keys $ Map.filter (not . null . List.intersect funcs . getFuncs []) (binds vm)
-
--- computes the inlined version of a function and recurses over any sub-functions of the function
+-- updates an inlined function and recurses over any sub-functions
 updateInline :: FuncName -> QVM -> QVM
-updateInline fname vm = if isJust i_f
+updateInline func vm = if isJust $ (i_binds vm) Map.! func
   then vm
-  else inlineFunc fname to_inline_in_f $ foldr updateInline vm to_inline_in_f
-  where i_f = (i_binds vm) Map.! fname
-        f = (binds vm) Map.! fname
-        to_inline_in_f = inlinableFuncs f $ binds vm
+  else inlineFunc func $ Set.foldr updateInline vm func_deps
+  where func_deps = inlinableFuncs vm $ (binds vm) Map.! func
 
--- inlines a function
+-- builds and binds the inlined version of a function
+inlineFunc :: FuncName -> QVM -> QVM
+inlineFunc func vm = vm { i_binds = Map.insert func (Just func_def') (i_binds vm) }
+  where func_def = (binds vm) Map.! func
+        func_def' = inline func_def vm
+
+-- inlines a Quark item
 inline :: QItem -> QVM -> QItem
-inline item vm = if null inlinable then item else inlineSub item vm inlinable
-  where inlinable = inlinableFuncs item $ binds vm
+inline item vm = item'
+  where item_deps = onlyDefined vm . nonCoreFuncs . getFuncs $ item
+        item_dep_defs = getHygenicBinds item_deps vm
+        item' = inlineSub item item_dep_defs
 
+-- builds a map of function names to inlined and hygenically renamed function definitions
+getHygenicBinds :: AtomSet -> QVM -> QLib
+getHygenicBinds funcs vm = Map.fromList . toList $ Set.map (\f -> (f, hygenicBind f)) funcs
+  where hygenicBind func = hygenicRename func $ case (i_binds vm) Map.! func of { Just x -> x; _ -> (binds vm) Map.! func }
 
-inlineSub :: QItem -> QVM -> [FuncName] -> QItem
-inlineSub item vm to_sub =
-  where
+-- renames variables in functions so that they can be inlined without variable conficts
+hygenicRename :: FuncName -> QItem -> QItem
+hygenicRename func item = hygenicRename' Set.empty item
+  where hygenicRename' vars (QAtom a) = if Set.member a vars then QAtom (func ++ "." ++ a) else QAtom a
+        hygenicRename' vars (QQuote p b) = QQuote (fmap atomRename p) (fmap (hygenicRename' (Set.union vars $ getAtoms p)) b)
+          where atomRename (QAtom a) = QAtom (func ++ "." ++ a)
+                atomRename x = x
+        hygenicRename' _ x = x
 
--- sets a function's inline slot to its inlined form
-inlineFunc :: FuncName -> [FuncName] -> QVM -> QVM
-inlineFunc fname to_inline vm = vm { i_binds = Map.insert fname (Just f_inlined) (i_binds vm) }
-  where f_inlined = head $ inline ((binds vm) Map.! fname) to_inline vm
-
-hygenicVars :: QItem -> Int -> QItem
-hygenicVars (QQuote p b) depth = qsub vars_delta (QQuote p b)
-  where vars = getAtoms p
-        vars' = map (\x -> QAtom $ x ++ (show depth)) vars
-        vars_delta = Map.fromList $ zip vars vars'
-hygenicVars x _ = x
-
--- Note: No var renaming yet... (this will cause problems)
-inline :: QItem -> Int -> QVM -> QItem
-inline (QQuote pattern body) depth vm =
-  where to_inline = inlinableFuncs (QQuote pattern body) $ binds vm
-        (QQuote pattern' body') = hygenicVars (QQuote pattern body) depth
-        inline_sub (QQuote =
-
-inline (QAtom a) depth vm =
-inline x _ _ = x
-
-
-  where
-        sub_atom (QAtom a) = if elem a to_inline then [inline_expr a vars vm, QAtom "call"]
-        sub_atom x = [x]
-
-        sub_quote vars' (QQuote pattern body) = [QQuote pattern $ Seq.fromList . concat $ inlined_body]
-          where inlined_body = fmap (\x -> inline x to_inline vars' vm) body
-
-
-inline (QQuote pattern body) to_inline vars vm = [QQuote pattern $ Seq.fromList . concat $ inlined_body]
-  where inlined_body = fmap (\x -> inline x to_inline vm) body
-inline (QAtom a) to_inline vars vm = if elem a to_inline
-  then let inline_expr = (\(Just x) -> x) $ (i_binds vm) Map.! a in [inline_expr, QAtom "call"]
-  else [QAtom a]
-inline x _ _ _ = [x]
+-- recursively replaces functions with their inlined values
+inlineSub :: QItem -> QLib -> QItem
+inlineSub item inlines = head $ inlineSub' item
+  where inlineSub' (QAtom a) = case Map.lookup a inlines of
+          Just x -> [x, QAtom "call"]
+          Nothing -> [QAtom a]
+        inlineSub' (QQuote p b) = [QQuote p $ Seq.fromList . concat . fmap inlineSub' $ b]
+        inlineSub' x = [x]
