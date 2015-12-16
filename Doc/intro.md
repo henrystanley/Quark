@@ -340,7 +340,7 @@ In REPL mode (because it gracefully handles errors) you'll have to enter `*q` (n
 "Special" Functions
 -------------------
 
-The Quark interpreter also implements two magic REPL only functions.
+The Quark interpreter also implements three magic REPL only functions.
 
 As we saw above, we can quit the REPL by entering `*q`.
 
@@ -348,6 +348,17 @@ Also available is the REPL function `*f`.
 Typed alone `*f` will print out all user defined functions and their accompanying binding.
 `*f` can also target a specific function to print out.
 For example you can use, `*f drop`, to see the current definition for `drop`.
+
+One last magic function is `*i`.
+`*i` can be used like `*f` to target a specific function.
+To increase performance the Quark interpreter computes optimized versions of defined functions.
+`*i` displays this optimized version for debugging purposes.
+(Theoretically the optimizer should never produce semantically incorrect code, but `*i` is handy to have anyway...)
+Here's an example using the prelude function, `pattern`:
+
+`*f pattern` -> `[ @- drop ]`
+
+`*i pattern` -> `[ @- [ drop.x | ] call ]`
 
 
 Hindley–Milner!?
