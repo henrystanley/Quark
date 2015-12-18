@@ -3,6 +3,7 @@ module Quark.Inline where
 import Quark.Type
 import Quark.QVM
 import Quark.QuoteUtils
+import Quark.Optimize
 import Data.Maybe
 import Data.Sequence (viewr)
 import Data.Sequence (ViewR(..))
@@ -87,9 +88,9 @@ inlineFunc func vm = vm { i_binds = Map.insert func (Just func_def') (i_binds vm
   where func_def = (binds vm) Map.! func
         func_def' = inline func_def vm
 
--- inlines a Quark item
+-- inlines and optimizes a Quark item
 inline :: QItem -> QVM -> QItem
-inline item vm = item'
+inline item vm = optimize item'
   where item_deps = onlyDefined vm . nonCoreFuncs . getFuncs $ item
         item_dep_defs = getHygenicBinds item_deps vm
         item' = inlineSub item item_dep_defs
