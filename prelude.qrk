@@ -105,7 +105,7 @@
 
 [[ [] x f | x ] [ x f | >> x f call f fold ]] :fold mdef
 
-[[ [] f | [] ] [ f | >> [ f map ] dip f call << ]] :map mdef
+[[ [] f | [] ] [ f | >> f call [ f map ] dip << ]] :map mdef
 
 [ [] [ swap << ] fold ] :reverse def
 
