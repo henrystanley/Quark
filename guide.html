@@ -7,8 +7,8 @@
 </head>
 
 <body>
-  
-<a href="/">
+
+<a href="/Quark">
   <img src="/Quark/QuarkLogoSmall.svg" id="logo">
 </a>
 
@@ -23,7 +23,7 @@
   <li>Are you addicted to Lisp and/or Lisp like substances?</li>
 </ul>
 
-<p>If you meet any of these criteria, please close this txt at once.
+<p>If you meet any of these criteria, please close this guide at once.
 With that out of the way, let&#8217;s continue&#8230;</p>
 
 <p>Quark is a simple functional language, oriented towards feature bootstrapping.
@@ -119,7 +119,7 @@ Quotes serve two purposes:</p>
 
 <ol>
   <li>As a general purpose data structure, much like lists in LISP</li>
-  <li>They allow us to compose functions, without applying them</li>
+  <li>As a means to compose functions, without applying them</li>
 </ol>
 
 <p>In regards to point two, allow me to introduce the <code>call</code> function.</p>
@@ -153,14 +153,8 @@ otherwise if they do, Replace bound variables in the quote body and call the quo
 
 <p>Let&#8217;s try this out:</p>
 
-<table>
-  <tbody>
-    <tr>
-      <td>:&gt; 6 [ 5</td>
-      <td>&#8216;This is a 5&#8217; print ] call</td>
-    </tr>
-  </tbody>
-</table>
+<pre><code>:&gt; 6 [ 5 | 'This is a 5' print ] call
+</code></pre>
 
 <p>This will (presuming it isn&#8217;t opposite day) <em>not</em> print &#8216;This is a 5&#8217;, instead as noted above it will put <code>:nil</code> on your stack.
 Now let&#8217;s do this:</p>
@@ -168,11 +162,13 @@ Now let&#8217;s do this:</p>
 <pre><code>:&gt; 'This will print!' [ x | x print ] call
 </code></pre>
 
-<p>Hopefully you can see what just happened:
-  1. We popped the string off the stack
-  2. Matched it with (and bound it to) the variable x
-  3. Replaced the x in the body with &#8216;This will print!&#8217;
-  4. Called the quote</p>
+<p>Hopefully you can see what just happened:</p>
+
+<pre><code>1. We popped the string off the stack
+2. Matched it with (and bound it to) the variable x
+3. Replaced the x in the body with 'This will print!'
+4. Called the quote
+</code></pre>
 
 <p>Let&#8217;s do another!</p>
 
@@ -296,7 +292,7 @@ To start us out, let&#8217;s check out the stuff you can do with quotes:</p>
 :&gt; &gt;&gt;
 </code></pre>
 
-<p>The <code>&lt;&lt;</code> and <code>&gt;&gt;</code> are inverse functions that push and pop items into quote bodies.</p>
+<p><code>&lt;&lt;</code> and <code>&gt;&gt;</code> are inverse functions that push and pop items into quote bodies.</p>
 
 <p>For dealing with quote patterns, we have a second pair of inverse functions, <code>@+</code> and <code>@-</code>.
 <code>@-</code> splits a quote with a pattern into two quotes with bodies containing the pattern and body of the original quote.
@@ -354,7 +350,7 @@ Not exactly rocket science.</p>
 <p>As you can see, it runs a command and puts the output as a string back on the stack.
 This function is blocking, so your program will wait for the command to finish (and if it never does, you&#8217;re out of luck).</p>
 
-<p>You may have noticed that all of these function add a <code>:ok</code> to your stack, just like <code>eval</code>.
+<p>You may have noticed that all of these function add a <code>:ok</code> to your stack, just like <code>parse</code>.
 This allows us to check if the operation succeeded.
 If it didn&#8217;t these functions will return a <code>:not-ok</code>.</p>
 
@@ -376,7 +372,7 @@ In REPL mode (because it gracefully handles errors) you&#8217;ll have to enter <
 
 <h2 id="special-functions">&#8220;Special&#8221; Functions</h2>
 
-<p>The Quark interpreter also implements two magic REPL only functions.</p>
+<p>The Quark interpreter also implements three magic REPL only functions.</p>
 
 <p>As we saw above, we can quit the REPL by entering <code>*q</code>.</p>
 
@@ -384,6 +380,17 @@ In REPL mode (because it gracefully handles errors) you&#8217;ll have to enter <
 Typed alone <code>*f</code> will print out all user defined functions and their accompanying binding.
 <code>*f</code> can also target a specific function to print out.
 For example you can use, <code>*f drop</code>, to see the current definition for <code>drop</code>.</p>
+
+<p>One last magic function is <code>*i</code>.
+<code>*i</code> can be used like <code>*f</code> to target a specific function.
+To increase performance the Quark interpreter computes optimized versions of defined functions.
+<code>*i</code> displays this optimized version for debugging purposes.
+(Theoretically the optimizer should never produce semantically incorrect code, but <code>*i</code> is handy to have anyway&#8230;)
+Here&#8217;s an example using the prelude function, <code>pattern</code>:</p>
+
+<p><code>*f pattern</code> -&gt; <code>[ @- drop ]</code></p>
+
+<p><code>*i pattern</code> -&gt; <code>[ @- [ drop.x | ] call ]</code></p>
 
 <h2 id="hindleymilner">Hindley–Milner!?</h2>
 
@@ -409,16 +416,21 @@ In the future hopefully the prelude will have one included, but for now you&#821
 Unlike proper languages, Quark doesn&#8217;t have a fancy module system.
 It can be handy to separate programs into multiple files though&#8230;</p>
 
-<p>Requiring files in Quark can be expressed as a composition of two functions we&#8217;ve already met: <code>load</code> and <code>eval</code>.
-Your Quark distribution should have come with the standard library, so why don&#8217;t we load it up?
-Hopefully you put it somewhere accessible.</p>
+<p>Requiring files in Quark can be expressed as a composition of functions we&#8217;ve already met.
+Let&#8217;s define an <code>import</code> function to do this:</p>
 
-<pre><code>:&gt; '~/quark/prelude.qrk' load eval
+<pre><code>:&gt; [ load [ :ok | parse ] call [ :ok | call ] call ] :import def
 </code></pre>
 
-<p>Now presuming you have <code>:ok</code> on your stack, you can play with all the goodies in there.
+<p>Your Quark distribution should have come with the standard library, so why don&#8217;t we load it up?
+Hopefully you put it somewhere accessible.</p>
+
+<pre><code>:&gt; '~/quark/prelude.qrk' import
+</code></pre>
+
+<p>Now presuming you don&#8217;t have <code>:nil</code> on your stack, you can play with all the goodies in there.
 Check out the API documentation to figure out how all this stuff works.
-For convenience&#8217;s sake Quark will use the prelude by default, so you won&#8217;t have to add <code>load eval</code> to all your scripts.</p>
+For convenience&#8217;s sake Quark will use the prelude by default, so you won&#8217;t have to add <code>import</code> to all your scripts.</p>
 
 <h2 id="tips">Tips</h2>
 
@@ -448,7 +460,7 @@ End boolean returning functions with <code>?</code> or use <code>+</code> to ind
 
 <h2 id="syntax">Syntax</h2>
 
-<pre><code>number ::= /-?[0-9](.[0-9])?/
+<pre><code>number ::= /-?[0-9]+(.[0-9]+)?/
 
 atom ::= /[^0-9\[\]|:"'\s\n\t]+/
 
@@ -497,6 +509,8 @@ These quarks (along with the leptons) compose together to create what we conside
 In Quark the key idea is that one can encode a vast amount of programming behavior with a small set of core functions.
 Through compositions of these core functions, all the features of the language can be implemented.</p>
 
+
+<h3>generated from commit: 9fa77328a88e7e3fbb45348323514f92ef09157c</h3>
 
 </body>
 
