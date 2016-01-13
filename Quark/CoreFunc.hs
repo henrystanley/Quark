@@ -30,10 +30,12 @@ coreFunc = Map.fromList [ "+" #=> qNumFunc (+)
                         , "*" #=> qNumFunc (*)
                         , "/" #=> qNumFunc (/)
                         , "<" #=> qTwoToOne [Num, Num] qlessthan
-                        , "<<" #=> qTwoToOne [Quote, Any] qpush
-                        , ">>" #=> qOneToMulti [Quote] qpop
-                        , "@+" #=> qTwoToOne [Quote, Quote] qunite
-                        , "@-" #=> qOneToMulti [Quote] qseparate
+                        , "@>" #=> qOneToMulti [Quote] qpop
+                        , "@<" #=> qTwoToOne [Quote, Any] qpush
+                        , "<@" #=> qOneToMulti [Quote] qendpop
+                        , ">@" #=> qTwoToOne [Any, Quote] qendpush
+                        , "><" #=> qTwoToOne [Quote, Quote] qunite
+                        , "<>" #=> qOneToMulti [Quote] qseparate
                         , "show" #=> qOneToOne [Any] qshow
                         , "chars" #=> qOneToOne [Str] qchars
                         , "weld" #=> qTwoToOne [Str, Str] qweld
@@ -58,12 +60,19 @@ coreFunc = Map.fromList [ "+" #=> qNumFunc (+)
 -- compares two numbers
 qlessthan (QNum x) (QNum y) = QSym $ if x < y then "true" else "false"
 
--- pushes an item into a quote body
+-- pushes an item into the top of a quote body
 qpush x (QQuote a sq) = QQuote a (sq |> x)
 
--- pops an item from a quote body
+-- pops an item from the top of a quote body
 qpop (QQuote a (viewr -> sq :> x)) = [x, (QQuote a sq)]
 qpop x = [x]
+
+-- appends an item to the end of a quote body
+qendpush (QQuote a sq) x = QQuote a (x <| sq)
+
+-- pops an item from the end of a quote body
+qendpop (QQuote a (viewl -> x :< sq)) = [(QQuote a sq), x]
+qendpop x = [x]
 
 -- makes the body of the second quote the pattern of the first quote
 qunite (QQuote _ xs) (QQuote _ ys) = QQuote ys xs

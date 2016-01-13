@@ -72,7 +72,7 @@ Let's Get Functional!
 
 Functions are pretty simple too.
 Quark makes a point of implementing by default only what is absolutely necessary.
-For this reason Quark contains only a small set of built in functions (22 at the moment).
+For this reason Quark contains only a small set of built in functions (24 at the moment).
 However, composing these core functions allows us to do all kind of neat things beyond Quark's basic functionality.
 
 Quark belongs to a nifty set of functional languages, known as concatenative languages.
@@ -259,19 +259,28 @@ Utilities
 ---------
 
 In this section we'll take a quick look at many of the lesser functions in Quark.
-To start us out, let's check out the stuff you can do with quotes:
+To start us out, let's check out the stuff you can do with quotes.
 
-    :> [ ] 4 <<
-    :> >>
+Quotes are actually, not merely lists, but double ended queues.
+This means that we can push and pop efficiently from their front and back.
+Here are the front pushing and popping operators:
 
-`<<` and `>>` are inverse functions that push and pop items into quote bodies.
+    :> [] 4 @<
+    :> @>
 
-For dealing with quote patterns, we have a second pair of inverse functions, `@+` and `@-`.
-`@-` splits a quote with a pattern into two quotes with bodies containing the pattern and body of the original quote.
-`@+` does the opposite, by joining two quote's bodies into a single quote with the first as a body and the second as a head.
+And here are the back ones:
 
-    :> [ 1 2 3 | :a :b :c ] @-
-    :> @+
+   :> 4 [] >@
+   :> <@
+
+A handy way to remember these is to imagine the '@' as the quote and the '>' or '<' as the direction to move the item.
+
+For dealing with quote patterns, we have a second pair of inverse functions, `><` and `<>`.
+`<>` splits a quote with a pattern into two quotes with bodies containing the pattern and body of the original quote.
+`><` does the opposite, by joining two quote's bodies into a single quote with the first as a body and the second as a head.
+
+    :> [ 1 2 3 | :a :b :c ] <>
+    :> ><
 
 Moving on... (by the way, between these examples you might want to clear your stack):
 

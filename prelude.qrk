@@ -10,7 +10,7 @@
 
 [ call ] :; def
 
-[ show-each pop,parse,call ] :~ def
+[ [quote] map [call] seqr ] :~ def
 
 
 "## Stack Manipulation Operators ##" comment
@@ -32,7 +32,7 @@
 
 "## Combinators ##" comment
 
-[ x y f | x f call y ] :dip def
+[ x f | f call x ] :dip def
 
 [ x fa fb | x fa call x fb call ] :bi def
 
@@ -93,28 +93,32 @@
 [ p f | p call not [ f call p f while ] if ] :while def
 
 
-"## Quote Functions ##" comment
+"## Quote Operators ##" comment
 
-[ @- drop ] :pattern def
+[ <> drop ] :pattern def
 
-[ @- nip ] :body def
+[ <> nip ] :body def
 
-[ @- swap >> [ swap @+ ] dip ] :@> def
+[ <> swap >> [ swap >< ] dip ] :p> def
 
-[ x | @- swap x << swap @+ ] :<@ def
+[ x | <> swap x @< swap >< ] :p< def
 
-[[ [] x f | x ] [ x f | >> x f call f fold ]] :fold mdef
+[[ [] f | ] [ f | <@ [ f call ] dip f seq ]] :seq mdef
 
-[[ [] f | [] ] [ f | >> f call [ f map ] dip << ]] :map mdef
+[[ [] f | ] [ f | @> swap f dip f seqr ]] :seqr mdef
 
-[ [] [ swap << ] fold ] :reverse def
+[[ [] x f | x ] [ x f | @> x f call f fold ]] :fold mdef
 
-[ reverse [ swap << ] fold reverse ] :concat def
+[ f | [] [ f dip >@ ] fold ] :map def
 
-[ [] rot [ dup [ << ] dip ++ ] times-do drop ] :range def
+[ [] [ swap @< ] fold ] :reverse def
+
+[[ [] x | x ] [ [ @> ] dip >@ ]] :concat mdef
+
+[ [] rot [ dup [ @< ] dip ++ ] times-do drop ] :range def
 
 [ 1 swap range ] :iota def
 
-[[ [] | [] ] [ >> show [ show-each ] dip << ]] :show-each mdef
+[ [] >@ ] :quote def
 
-[[ [] | ] [ >> parse drop swap [ call ] dip pop,parse,call ]] :pop,parse,call mdef
+[ <@ drop ] :unquote def
