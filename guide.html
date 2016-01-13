@@ -88,7 +88,7 @@ Symbols are literals used for names, keys, and other stuff.</p>
 
 <p>Functions are pretty simple too.
 Quark makes a point of implementing by default only what is absolutely necessary.
-For this reason Quark contains only a small set of built in functions (22 at the moment).
+For this reason Quark contains only a small set of built in functions (24 at the moment).
 However, composing these core functions allows us to do all kind of neat things beyond Quark&#8217;s basic functionality.</p>
 
 <p>Quark belongs to a nifty set of functional languages, known as concatenative languages.
@@ -286,20 +286,29 @@ The only slight difference is that <code>parse</code> has that nifty error handl
 <h2 id="utilities">Utilities</h2>
 
 <p>In this section we&#8217;ll take a quick look at many of the lesser functions in Quark.
-To start us out, let&#8217;s check out the stuff you can do with quotes:</p>
+To start us out, let&#8217;s check out the stuff you can do with quotes.</p>
 
-<pre><code>:&gt; [ ] 4 &lt;&lt;
-:&gt; &gt;&gt;
+<p>Quotes are actually, not merely lists, but double ended queues.
+This means that we can push and pop efficiently from their front and back.
+Here are the front pushing and popping operators:</p>
+
+<pre><code>:&gt; [] 4 @&lt;
+:&gt; @&gt;
 </code></pre>
 
-<p><code>&lt;&lt;</code> and <code>&gt;&gt;</code> are inverse functions that push and pop items into quote bodies.</p>
+<p>And here are the back ones:</p>
 
-<p>For dealing with quote patterns, we have a second pair of inverse functions, <code>@+</code> and <code>@-</code>.
-<code>@-</code> splits a quote with a pattern into two quotes with bodies containing the pattern and body of the original quote.
-<code>@+</code> does the opposite, by joining two quote&#8217;s bodies into a single quote with the first as a body and the second as a head.</p>
+<p>:&gt; 4 [] &gt;@
+   :&gt; &lt;@</p>
 
-<pre><code>:&gt; [ 1 2 3 | :a :b :c ] @-
-:&gt; @+
+<p>A handy way to remember these is to imagine the &#8216;@&#8217; as the quote and the &#8216;&gt;&#8217; or &#8216;&lt;&#8217; as the direction to move the item.</p>
+
+<p>For dealing with quote patterns, we have a second pair of inverse functions, <code>&gt;&lt;</code> and <code>&lt;&gt;</code>.
+<code>&lt;&gt;</code> splits a quote with a pattern into two quotes with bodies containing the pattern and body of the original quote.
+<code>&gt;&lt;</code> does the opposite, by joining two quote&#8217;s bodies into a single quote with the first as a body and the second as a head.</p>
+
+<pre><code>:&gt; [ 1 2 3 | :a :b :c ] &lt;&gt;
+:&gt; &gt;&lt;
 </code></pre>
 
 <p>Moving on&#8230; (by the way, between these examples you might want to clear your stack):</p>
@@ -510,7 +519,7 @@ In Quark the key idea is that one can encode a vast amount of programming behavi
 Through compositions of these core functions, all the features of the language can be implemented.</p>
 
 
-<h3>generated from commit: 9fa77328a88e7e3fbb45348323514f92ef09157c</h3>
+<h3>generated from commit: 477fe2af096b317d26acca13611b2a852f0e98dc</h3>
 
 </body>
 
