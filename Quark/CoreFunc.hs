@@ -65,14 +65,14 @@ qpush x (QQuote a sq) = QQuote a (sq |> x)
 
 -- pops an item from the top of a quote body
 qpop (QQuote a (viewr -> sq :> x)) = [x, (QQuote a sq)]
-qpop x = [x]
+qpop x = [(QSym "nil"), x]
 
 -- appends an item to the end of a quote body
 qendpush (QQuote a sq) x = QQuote a (x <| sq)
 
 -- pops an item from the end of a quote body
 qendpop (QQuote a (viewl -> x :< sq)) = [(QQuote a sq), x]
-qendpop x = [x]
+qendpop x = [x, (QSym "nil")]
 
 -- makes the body of the second quote the pattern of the first quote
 qunite (QQuote _ xs) (QQuote _ ys) = QQuote ys xs
