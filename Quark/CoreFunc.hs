@@ -25,8 +25,8 @@ import Control.Exception
 -- Core Function Dispatch
 
 -- map of function names to core functions
-coreFunc :: Map.Map FuncName QFunc
-coreFunc = Map.fromList [ "+" #=> qNumFunc (+)
+coreFunc :: [String] -> Map.Map FuncName QFunc
+coreFunc params = Map.fromList [ "+" #=> qNumFunc (+)
                         , "*" #=> qNumFunc (*)
                         , "/" #=> qNumFunc (/)
                         , "<" #=> qTwoToOne [Num, Num] qlessthan
@@ -40,7 +40,7 @@ coreFunc = Map.fromList [ "+" #=> qNumFunc (+)
                         , "chars" #=> qOneToOne [Str] qchars
                         , "weld" #=> qTwoToOne [Str, Str] qweld
                         , "type" #=> qOneToOne [Any] qtypei
-                        , "def" #=> qPureFunc [Quote, Sym] qdef
+                        , "def" #=> qPureFunc [Quote, Sym] (if elem "-O" params then qidef else qdef)
                         , "parse" #=> qOneToMulti [Str] qparsei
                         , "call" #=> qFunc [Quote] qcall
                         , "match" #=> qFunc [Quote] qmatch
@@ -94,8 +94,11 @@ qchars (QStr xs) = QQuote Seq.empty strChars
 qweld (QStr a) (QStr b) = QStr $ b ++ a
 
 -- pops a symbol and quote. binds the symbol to the quote as a function in the vm
--- also triggers inlining for functions
-qdef vm = Set.foldr updateInline vm'' to_inline
+qdef vm = vm { stack = stack', binds = Map.insert fname f (binds vm) }
+  where ((QSym fname) : f : stack') = stack vm
+
+-- same as qdef, but also triggers inlining and optimization for functions
+qidef vm = Set.foldr updateInline vm'' to_inline
   where ((QSym fname) : f : stack') = stack vm
         to_inline = changedDefs vm fname
         vm' = vm { stack = stack', binds = Map.insert fname f (binds vm) }

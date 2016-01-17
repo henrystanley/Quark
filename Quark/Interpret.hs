@@ -13,25 +13,25 @@ import qualified Data.Sequence as Seq
 --- Interpreter ---
 
 -- reduces a quark vm until its token stack is empty
-recEval :: IO (Maybe QVM) -> IO (Maybe QVM)
-recEval iovm = do
+recEval :: [String] -> IO (Maybe QVM) -> IO (Maybe QVM)
+recEval params iovm = do
   vm <- iovm
   case vm of
     Just (prog -> (viewl -> Seq.EmptyL)) -> return vm
-    Just x -> recEval $ eval x
+    Just x -> recEval params $ eval params x
     Nothing -> return Nothing
 
 -- parses and evaluates a string of quark code
-runQuark :: Bool -> IO QVM -> String -> IO (Maybe QVM)
-runQuark quiet iovm s = case qParse s of
-  Left perror -> if not quiet then raiseError $ "Parse Error: " ++ (show perror) else return Nothing
+runQuark :: [String]-> IO QVM -> String -> IO (Maybe QVM)
+runQuark params iovm s = case qParse s of
+  Left perror -> raiseError $ "Parse Error: " ++ (show perror)
   Right tokens -> do
     vm <- iovm
-    let vm' = (return . Just) (pushProgQVM vm (Seq.fromList tokens)) in recEval vm'
+    let vm' = (return . Just) (pushProgQVM vm (Seq.fromList tokens)) in recEval params vm'
 
 -- runs a quark script
-qInterpret :: IO QVM -> String -> IO ()
-qInterpret vm scriptname  = do
+qInterpret :: [String] -> IO QVM -> String -> IO ()
+qInterpret params vm scriptname = do
   script <- readFile scriptname
-  runQuark False vm script
+  runQuark params vm script
   return ()

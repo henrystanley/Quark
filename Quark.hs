@@ -32,14 +32,14 @@ main = do
     then do
       preludeFilepath <- getDataFileName "prelude.qrk"
       preludeCode <- readFile preludeFilepath
-      preludeVM <- runQuark False (return emptyQVM) preludeCode
+      preludeVM <- runQuark params (return emptyQVM) preludeCode
       case preludeVM of
         Just vm -> return vm
         Nothing -> return emptyQVM
     else (return emptyQVM)
   case filenames of
-    [] -> qRepl $ return baseQVM
-    xs -> mapM (qInterpret (return baseQVM)) filenames >> return ()
+    [] -> qRepl params $ return baseQVM
+    xs -> mapM (qInterpret params (return baseQVM)) filenames >> return ()
 
 -- parses args into filenames and parameters
 parseArgs :: [String] -> ([String], [String])

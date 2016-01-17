@@ -10,22 +10,24 @@ import Data.List
 
 -- read eval loop
 -- prints prompt, gets input, then handles special cmds or evaulates the input
-qRepl :: IO QVM -> IO ()
-qRepl vm = do
+qRepl :: [String] -> IO QVM -> IO ()
+qRepl params vm = do
   putStr ":> "
   input <- getLine
   case words input of
     ["*q"] -> return ()
-    ["*f"] -> vm >>= displayFunctions >> qRepl vm
-    ["*f", f] -> vm >>= (displayFunction f) >> qRepl vm
-    ["*i", f] -> vm >>= (displayInlineFunction f) >> qRepl vm
+    ["*f"] -> vm >>= displayFunctions >> qRepl params vm
+    ["*f", f] -> vm >>= (displayFunction f) >> qRepl params vm
+    ["*i", f] -> (if elem "-O" params
+                    then vm >>= (displayInlineFunction f)
+                    else putStrLn "Inlining disabled") >> qRepl params vm
     otherwise -> do
-      reduced <- runQuark False vm input
+      reduced <- runQuark params vm input
       case reduced of
-        Nothing -> qRepl vm
+        Nothing -> qRepl params vm
         Just vm' -> do
           displayStack vm'
-          qRepl (return vm')
+          qRepl params (return vm')
 
 
 --- REPL Special Function Printing ---

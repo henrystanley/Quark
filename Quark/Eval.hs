@@ -24,16 +24,17 @@ import Data.Maybe
 -- main evaluation function, takes a quark vm and (assuming there aren't any errors) returns its reduction
 -- if the top item is a fuction, run it
 -- otherwise, push the top item to the data stack
-eval :: QVM -> IState
-eval vm = case viewl (prog vm) of
-  ((QFunc f) :< sq) -> (getFunc vm f) $ vm { prog = sq }
+eval :: [String] -> QVM -> IState
+eval params vm = case viewl (prog vm) of
+  ((QFunc f) :< sq) -> (getFunc params vm f) $ vm { prog = sq }
   (x :< sq) -> return . Just $ vm { stack = x : (stack vm), prog = sq }
 
 -- tries to retrieve a core or runtime defined function
 -- if this fails, returns a `No such function: ` yeilding function
-getFunc :: QVM -> FuncName -> QFunc
-getFunc vm fname = case Map.lookup fname coreFunc of
+getFunc :: [String] -> QVM -> FuncName -> QFunc
+getFunc params vm fname = case Map.lookup fname (coreFunc params) of
   Just f -> f
-  Nothing -> case getIDef vm fname of
+  Nothing -> case runtimeDef of
     Just f -> tryQuote f
     Nothing -> (\_ -> raiseError ("No such function: " ++ fname))
+  where runtimeDef = if elem "-O" params then getIDef vm fname else getDef vm fname
