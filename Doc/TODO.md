@@ -15,6 +15,10 @@
 
 - figure out a better implementation for variables (hopefully more hygenic and faster)
 
+- change `IState` to be a `ExceptT ErrorMsg IO QVM`
+
+- clean up parser (it's a bit of a mess right now)
+
 
 ## Ideas ##
 
@@ -23,3 +27,7 @@
 - mod function
 
 - regex function
+
+- remove single quote strings so `'` can be used in function names
+
+- getState and setState functions
