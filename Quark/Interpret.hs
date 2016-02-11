@@ -22,12 +22,12 @@ recEval params iovm = do
     Nothing -> return Nothing
 
 -- parses and evaluates a string of quark code
-runQuark :: [String]-> IO QVM -> String -> IO (Maybe QVM)
+runQuark :: [String] -> IO QVM -> String -> IO (Maybe QVM)
 runQuark params iovm s = case qParse s of
-  Left perror -> raiseError $ "Parse Error: " ++ (show perror)
+  Left perror -> iovm >>= raiseError ("Parse Error: " ++ (show perror))
   Right tokens -> do
     vm <- iovm
-    let vm' = (return . Just) (pushProgQVM vm (Seq.fromList tokens)) in recEval params vm'
+    let vm' = (return . Just) (pushProgVM (Seq.fromList tokens) vm) in recEval params vm'
 
 -- runs a quark script
 qInterpret :: [String] -> IO QVM -> String -> IO ()

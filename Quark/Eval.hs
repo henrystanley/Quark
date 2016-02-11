@@ -27,6 +27,7 @@ import Data.Maybe
 eval :: [String] -> QVM -> IState
 eval params vm = case viewl (prog vm) of
   ((QFunc f) :< sq) -> (getFunc params vm f) $ vm { prog = sq }
+  ((QMagic PopCallStack) :< sq) -> return . Just $ vm { prog = sq, callstack = tail $ callstack vm }
   (x :< sq) -> return . Just $ vm { stack = x : (stack vm), prog = sq }
 
 -- tries to retrieve a core or runtime defined function
@@ -35,6 +36,6 @@ getFunc :: [String] -> QVM -> FuncName -> QFunc
 getFunc params vm fname = case Map.lookup fname (coreFunc params) of
   Just f -> f
   Nothing -> case runtimeDef of
-    Just f -> tryQuote f
-    Nothing -> (\_ -> raiseError ("No such function: " ++ fname))
+    Just f -> callFunc fname f
+    Nothing -> (\_ -> raiseError ("No such function: " ++ fname) vm)
   where runtimeDef = if elem "-O" params then getIDef vm fname else getDef vm fname

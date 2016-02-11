@@ -7,13 +7,16 @@ import Quark.QType
 -- Error Builders
 
 -- raises an error in the quark interpreter
-raiseError :: String -> IState
-raiseError str = putStrLn ("ERROR: " ++ str) >> return Nothing
+raiseError :: String -> QVM -> IState
+raiseError str vm = putStrLn ("ERROR: " ++ str ++ (formatCallstack vm)) >> return Nothing
+
+formatCallstack :: QVM -> String
+formatCallstack vm = "\nwith callstack:\n" ++ (unlines $ callstack vm)
 
 -- specific error function for type mis-matches of quark core functions
-raiseTypeError :: String -> QTypeSig -> QStack -> IState
-raiseTypeError name sig stack = raiseError typeError
-  where stack_sig = map qtype . reverse . take (length sig) $ stack
+raiseTypeError :: String -> QTypeSig -> QVM -> IState
+raiseTypeError name sig vm = raiseError typeError vm
+  where stack_sig = map qtype . reverse . take (length sig) $ stack vm
         typeError = "Primary function: "
                     ++ name
                     ++ " expected a stack of: "

@@ -12,6 +12,7 @@ data QItem = QNum Double -- Number
            | QVar String -- Variable
            | QSym String -- Symbol
            | QStr String -- String
+           | QMagic IMagic -- Interpreter helper value
            deriving (Eq, Show, Ord)
 
 -- function names
@@ -28,3 +29,7 @@ type QProg = Seq.Seq QItem
 
 -- set of function names
 type AtomSet = Set.Set FuncName
+
+-- hidden interpreter commands
+-- used to handle things like managing the callstack or marking optimizations
+data IMagic = PopCallStack deriving (Eq, Show, Ord)

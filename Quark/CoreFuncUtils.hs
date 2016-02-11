@@ -17,7 +17,7 @@ import Quark.Errors
 qFunc :: QTypeSig -> QFunc -> FuncName -> QFunc
 qFunc sig f name = (\vm -> if qtypeCheck (reverse sig) (stack vm)
   then f vm
-  else raiseTypeError name sig (stack vm))
+  else raiseTypeError name sig vm)
 
 -- makes a pure quark function
 qPureFunc :: QTypeSig -> (QVM -> QVM) -> FuncName -> QFunc

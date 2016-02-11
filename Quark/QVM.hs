@@ -11,6 +11,7 @@ data QVM = QVM { stack :: QStack
                , prog :: QProg
                , binds :: QLib
                , i_binds :: Map.Map FuncName (Maybe QItem)
+               , callstack :: [FuncName]
                } deriving (Show, Eq)
 
 -- interpreter state
@@ -22,11 +23,11 @@ type QFunc = QVM -> IState
 
 -- a base quark vm, obviously all quark programs start with this
 emptyQVM :: QVM
-emptyQVM = QVM [] Seq.empty Map.empty Map.empty
+emptyQVM = QVM [] Seq.empty Map.empty Map.empty []
 
 -- concat items to a quark vm's evaluation stack
-pushProgQVM :: QVM -> QProg -> QVM
-pushProgQVM vm newProg = vm { prog = newProg Seq.>< (prog vm) }
+pushProgVM :: QProg -> QVM -> QVM
+pushProgVM newProg vm = vm { prog = newProg Seq.>< (prog vm) }
 
 -- drop n items from a vm's stack
 dropVM :: Int -> QVM -> QVM
@@ -35,6 +36,9 @@ dropVM n vm = vm { stack = drop n (stack vm) }
 -- push a qitem to a vm's stack
 pushVM :: QItem -> QVM -> QVM
 pushVM x vm = vm { stack = x : (stack vm) }
+
+pushCallVM :: FuncName -> QVM -> QVM
+pushCallVM fname vm = vm { callstack = fname : (callstack vm) }
 
 -- gets a runtime defined function, if no such function exists returns `Nothing`
 getDef :: QVM -> FuncName -> Maybe QItem

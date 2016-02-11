@@ -125,7 +125,7 @@ qmatch vm = (tryQuotes quotes) vm { stack = stack' }
           ((QQuote p b) :< sq) -> case patternMatch p stack' of
             Just bindings -> callQuote b bindings . dropVM (Seq.length p)
             Nothing -> tryQuotes sq
-          (_ :< _) -> (\_ -> raiseError "Non quote value found in `match` call")
+          (_ :< _) -> (\_ -> raiseError "Non quote value found in `match` call" vm)
 
 -- pops a string and prints it without a linebreak
 qprint vm = putStr x >> (return . Just $ vm { stack = stack' })
