@@ -9,6 +9,7 @@ import qualified Data.Set as Set
 data QItem = QNum Double -- Number
            | QQuote (Seq.Seq QItem) (Seq.Seq QItem) -- Quote
            | QFunc String -- Function
+           | QCFunc String -- Core Function
            | QVar String -- Variable
            | QSym String -- Symbol
            | QStr String -- String

@@ -1,165 +1,238 @@
-{-# LANGUAGE ViewPatterns #-}
-
 module Quark.CoreFunc (coreFunc) where
 
 import Quark.Type
 import Quark.QType
 import Quark.Parse
 import Quark.Serialize
-import Quark.CoreFuncUtils
 import Quark.QVM
 import Quark.Errors
 import Quark.QuoteEval
 import Quark.Inline
-import Data.List
 import qualified Data.Map.Strict as Map
 import qualified Data.Sequence as Seq
-import qualified Data.Set as Set
+import qualified System.Process as SysProc
 import Data.Sequence ((><), (<|), (|>), viewr, viewl)
 import Data.Sequence (ViewL(..))
 import Data.Sequence (ViewR(..))
-import System.Process
 import Control.Exception
 
 
--- Core Function Dispatch
+-- Core Function Dispatch ---
 
--- map of function names to core functions
-coreFunc :: [String] -> Map.Map FuncName QFunc
-coreFunc params = Map.fromList [ "+" #=> qNumFunc (+)
-                        , "*" #=> qNumFunc (*)
-                        , "/" #=> qNumFunc (/)
-                        , "<" #=> qTwoToOne [Num, Num] qlessthan
-                        , "@>" #=> qOneToMulti [Quote] qpop
-                        , "@<" #=> qTwoToOne [Quote, Any] qpush
-                        , "<@" #=> qOneToMulti [Quote] qendpop
-                        , ">@" #=> qTwoToOne [Any, Quote] qendpush
-                        , "><" #=> qTwoToOne [Quote, Quote] qunite
-                        , "<>" #=> qOneToMulti [Quote] qseparate
-                        , "show" #=> qOneToOne [Any] qshow
-                        , "chars" #=> qOneToOne [Str] qchars
-                        , "weld" #=> qTwoToOne [Str, Str] qweld
-                        , "type" #=> qOneToOne [Any] qtypei
-                        , "def" #=> qPureFunc [Quote, Sym] (if elem "-O" params then qidef else qdef)
-                        , "parse" #=> qOneToMulti [Str] qparsei
-                        , "call" #=> qFunc [Quote] qcall
-                        , "match" #=> qFunc [Quote] qmatch
-                        , "." #=> qFunc [] qprintstack
-                        , "load" #=> qFunc [Str] qload
-                        , "write" #=> qFunc [Str, Str] qwrite
-                        , "cmd" #=> qFunc [Str] qcmd
-                        , "print" #=> qFunc [Str] qprint
-                        , "exit" #=> qFunc [] qexit ]
+-- applies a core function
+coreFunc :: FuncName -> QVM -> IState
+coreFunc coreFunc = cf
+  where cf = case coreFunc of
+          "+" -> qAdd
+          "*" -> qMul
+          "/" -> qDiv
+          "<" -> qLessThan
+          "@>" -> qPopFront
+          "@<" -> qPushFront
+          "<@" -> qPopBack
+          ">@" -> qPushBack
+          "><" -> qUnite
+          "<>"-> qSeparate
+          "show" -> qShow
+          "chars" -> qChars
+          "weld" -> qWeld
+          "type" -> qTypeOf
+          "def" -> qDef
+          "parse" -> qParseStr
+          "call" -> qCall
+          "match" -> qMatch
+          "." -> qPrintStack
+          "load" -> qLoad
+          "write" -> qWrite
+          "cmd" -> qCmd
+          "print" -> qPrint
+          "exit" -> qExit
+          _ -> raiseError ("No such function: " ++ coreFunc)
 
 
 --- Core Function Implementations ---
 
+-- addition
+qAdd :: QVM -> IState
+qAdd vm = case stack vm of
+  (QNum x : QNum y : stack') -> return . Just $ vm { stack = QNum (x + y) : stack' }
+  _ -> raiseTypeError "+" [Num, Num] vm
 
--- Pure Functions:
+-- multiplication
+qMul :: QVM -> IState
+qMul vm = case stack vm of
+  (QNum x : QNum y : stack') -> return . Just $ vm { stack = QNum (x * y) : stack' }
+  _ -> raiseTypeError "*" [Num, Num] vm
+
+-- division
+qDiv :: QVM -> IState
+qDiv vm = case stack vm of
+  (QNum x : QNum 0 : stack') -> raiseError "Tried to divide by zero" vm
+  (QNum x : QNum y : stack') -> return . Just $ vm { stack = QNum (x / y) : stack' }
+  _ -> raiseTypeError "/" [Num, Num] vm
 
 -- compares two numbers
-qlessthan (QNum x) (QNum y) = QSym $ if x < y then "true" else "false"
+qLessThan :: QVM -> IState
+qLessThan vm = case stack vm of
+  (QNum x : QNum y : stack') -> return . Just $ vm { stack = QSym comparison : stack' }
+    where comparison = if x < y then "true" else "false"
+  _ -> raiseTypeError "<" [Num, Num] vm
 
--- pushes an item into the top of a quote body
-qpush x (QQuote a sq) = QQuote a (sq |> x)
+-- appends an item to the front of a quote body
+qPushFront :: QVM -> IState
+qPushFront vm = case stack vm of
+  (x : QQuote a sq : stack') -> return . Just $ vm { stack = QQuote a (sq |> x) : stack' }
+  _ -> raiseTypeError "@<" [Quote, Any] vm
 
--- pops an item from the top of a quote body
-qpop (QQuote a (viewr -> sq :> x)) = [x, (QQuote a sq)]
-qpop x = [(QSym "nil"), x]
+-- pops an item from the front of a quote body
+qPopFront :: QVM -> IState
+qPopFront vm = case stack vm of
+  (QQuote a sq : stack') -> return . Just $ vm { stack = popItem : QQuote a sq' : stack' }
+    where (popItem, sq') = case viewr sq of
+            (rest :> x) -> (x, rest)
+            _ -> (QSym "nil", sq)
+  _ -> raiseTypeError "@>" [Quote] vm
 
 -- appends an item to the end of a quote body
-qendpush (QQuote a sq) x = QQuote a (x <| sq)
+qPushBack :: QVM -> IState
+qPushBack vm = case stack vm of
+  (QQuote a sq : x : stack') -> return . Just $ vm { stack = QQuote a (x <| sq) : stack' }
+  _ -> raiseTypeError ">@" [Any, Quote] vm
 
 -- pops an item from the end of a quote body
-qendpop (QQuote a (viewl -> x :< sq)) = [(QQuote a sq), x]
-qendpop x = [x, (QSym "nil")]
+qPopBack :: QVM -> IState
+qPopBack vm = case stack vm of
+  (QQuote a sq : stack') -> return . Just $ vm { stack = QQuote a sq' : popItem : stack' }
+    where (popItem, sq') = case viewl sq of
+            (x :< rest) -> (x, rest)
+            _ -> (QSym "nil", sq)
+  _ -> raiseTypeError "<@" [Quote] vm
 
 -- makes the body of the second quote the pattern of the first quote
-qunite (QQuote _ xs) (QQuote _ ys) = QQuote ys xs
+qUnite :: QVM -> IState
+qUnite vm = case stack vm of
+  (QQuote a1 sq1 : QQuote a2 sq2 : stack') -> return . Just $ vm'
+    where vm' = vm { stack = QQuote sq2 sq1 : stack' }
+  _ -> raiseTypeError "><" [Quote, Quote] vm
 
--- splits a quote into two new quotes, whose bodies contain the pattern and body of the original quote
-qseparate (QQuote ys xs) = [(QQuote Seq.empty xs), (QQuote Seq.empty ys)]
+-- splits a quote into two new quotes
+-- the bodies of the new quotes contain the pattern and body of the original quote
+qSeparate :: QVM -> IState
+qSeparate vm = case stack vm of
+  (QQuote a sq : stack') -> return . Just $ vm'
+    where bodyQuote = QQuote Seq.empty sq
+          patternQuote = QQuote Seq.empty a
+          vm' = vm { stack = bodyQuote : patternQuote : stack' }
+  _ -> raiseTypeError "<>" [Quote] vm
 
 -- pops an item, and pushes the type of this item as a symbol
-qtypei = qtypeLiteral . qtype
+qTypeOf :: QVM -> IState
+qTypeOf vm = case stack vm of
+  (x : stack') -> return . Just $ vm { stack = (qtypeLiteral . qtype) x : stack' }
+  _ -> raiseTypeError "type" [Any] vm
 
 -- pops an item and pushes its string representation using serializeQ
-qshow = QStr . serializeQ 0
+qShow :: QVM -> IState
+qShow vm = case stack vm of
+  (x : stack') -> return . Just $ vm { stack = (QStr . serializeQ 0) x : stack' }
+  _ -> raiseTypeError "show" [Any] vm
 
 -- pops a string and pushes a quote containing a string for each character in the string
-qchars (QStr xs) = QQuote Seq.empty strChars
-  where strChars = Seq.fromList $ map (QStr . (\c -> [c])) xs
+qChars :: QVM -> IState
+qChars vm = case stack vm of
+  (QStr str : stack') -> return . Just $ vm { stack = QQuote Seq.empty strChars : stack' }
+    where strChars = Seq.fromList $ map (QStr . (\c -> [c])) str
+  _ -> raiseTypeError "chars" [Str] vm
 
 -- pops two strings and concats them
-qweld (QStr a) (QStr b) = QStr $ b ++ a
+qWeld :: QVM -> IState
+qWeld vm = case stack vm of
+  (QStr str1 : QStr str2 : stack') -> return . Just $ vm'
+    where vm' = vm { stack = QStr (str2 ++ str1) : stack' }
+  _ -> raiseTypeError "weld" [Str, Str] vm
 
 -- pops a symbol and quote. binds the symbol to the quote as a function in the vm
-qdef vm = vm { stack = stack', binds = Map.insert fname f (binds vm) }
-  where ((QSym fname) : f : stack') = stack vm
-
--- same as qdef, but also triggers inlining and optimization for functions
-qidef vm = Set.foldr updateInline vm'' to_inline
-  where ((QSym fname) : f : stack') = stack vm
-        to_inline = changedDefs vm fname
-        vm' = vm { stack = stack', binds = Map.insert fname f (binds vm) }
-        vm'' = markForInlineUpdate vm' fname
+qDef :: QVM -> IState
+qDef vm = case stack vm of
+  (QSym fname : QQuote a sq : stack') -> return . Just $ vm'
+    where binds' = Map.insert fname (QQuote a sq) (binds vm)
+          vm' = vm { stack = stack', binds = binds' }
+  _ -> raiseTypeError "def" [Quote, Sym] vm
 
 -- parses a string containing quark code
-qparsei (QStr x) = case qParse x of
-  Left _ -> [QSym "not-ok"]
-  Right qvals -> [QSym "ok", parsedQuote]
-    where parsedQuote = QQuote Seq.empty (Seq.fromList qvals)
-
-
--- Scary Impure Functions:
+qParseStr :: QVM -> IState
+qParseStr vm = case stack vm of
+  (QStr str : stack') -> return . Just $ vm { stack = parsed ++ stack' }
+    where parsed = case qParse str of
+            Left _ -> [QSym "not-ok"]
+            Right qvals -> [QSym "ok", QQuote Seq.empty $ Seq.fromList qvals]
+  _ -> raiseTypeError "parse" [Str] vm
 
 -- calls a quote
-qcall vm = tryQuote quote $ vm { stack = stack' }
-  where (quote : stack') = stack vm
+qCall :: QVM -> IState
+qCall vm = case stack vm of
+  (QQuote a sq : stack') -> tryQuote (QQuote a sq) $ vm { stack = stack' }
+  _ -> raiseTypeError "call" [Quote] vm
 
 -- calls the first quote in a list of quotes that has a matching pattern
-qmatch vm = (tryQuotes quotes) vm { stack = stack' }
-  where ((QQuote _ quotes) : stack') = stack vm
-        tryQuotes qs = case viewl qs of
-          Seq.EmptyL -> return . Just
-          ((QQuote p b) :< sq) -> case patternMatch p stack' of
-            Just bindings -> callQuote b bindings . dropVM (Seq.length p)
-            Nothing -> tryQuotes sq
-          (_ :< _) -> (\_ -> raiseError "Non quote value found in `match` call" vm)
+qMatch :: QVM -> IState
+qMatch vm = case stack vm of
+  (QQuote a sq : stack') -> tryQuotes sq $ vm { stack = stack' }
+    where tryQuotes quotes = case viewl quotes of
+            Seq.EmptyL -> return . Just
+            (QQuote pattern body :< quotes') -> case patternMatch pattern stack' of
+              Just bindings -> callQuote body bindings . dropVM (Seq.length pattern)
+              Nothing -> tryQuotes quotes'
+            (_ :< _) -> raiseError "Non quote value found in `match` call"
+  _ -> raiseTypeError "match" [Quote] vm
 
 -- pops a string and prints it without a linebreak
-qprint vm = putStr x >> (return . Just $ vm { stack = stack' })
-  where ((QStr x) : stack') = stack vm
+qPrint :: QVM -> IState
+qPrint vm = case stack vm of
+  (QStr str : stack') -> putStr str >> (return . Just $ vm { stack = stack' })
+  _ -> raiseTypeError "print" [Str] vm
 
 -- prints the contents of the entire stack with a linebreak
-qprintstack vm = (putStrLn . intercalate " " . map (serializeQ 0) . reverse . stack) vm >> (return . Just $ vm)
+qPrintStack :: QVM -> IState
+qPrintStack vm = do
+  putStrLn . unwords . map (serializeQ 0) . reverse . stack $ vm
+  return . Just $ vm
 
--- pops a string and loads the file with this filename, then pushes back the contents of the file as a string
-qload vm = do
-  read_str <- try (readFile filename) :: IO (Either SomeException String)
-  let stack_top = case read_str of {
-    Left _ -> [QSym "not-ok"];
-    Right s -> [QSym "ok", QStr s]; }
-  return . Just $ vm { stack = stack_top ++ stack' }
-  where ((QStr filename) : stack') = stack vm
+-- pops a string and loads the file with this filename
+-- pushes the contents of the file as a string back on the stack
+qLoad :: QVM -> IState
+qLoad vm = case stack vm of
+  (QStr filename : stack') -> do
+    fileContents <- try $ readFile filename :: IO (Either SomeException String)
+    let stackTop = case fileContents of
+          Left _ -> [QSym "not-ok"]
+          Right contents -> [QSym "ok", QStr contents]
+    return . Just $ vm { stack = stackTop ++ stack' }
+  _ -> raiseTypeError "load" [Str] vm
 
--- pops two strings, uses the first as a filename to save as and the second as the file contents
-qwrite vm = do
-  wrote <- try (writeFile filename toWrite) :: IO (Either SomeException ())
-  let stack_top = case wrote of {
-    Left _ -> [QSym "not-ok"];
-    Right _ -> [QSym "ok"]; }
-  return . Just $ vm { stack = stack_top ++ stack' }
-  where ((QStr filename) : (QStr toWrite) : stack') = stack vm
+-- pops two strings: a filename to save as, and the file contents to write
+qWrite :: QVM -> IState
+qWrite vm = case stack vm of
+  (QStr filename : QStr toWrite : stack') -> do
+    wrote <- try $ writeFile filename toWrite :: IO (Either SomeException ())
+    let stackTop = case wrote of
+          Left _ -> [QSym "not-ok"]
+          Right _ -> [QSym "ok"]
+    return . Just $ vm { stack = stackTop ++ stack' }
+  _ -> raiseTypeError "write" [Str, Str] vm
 
--- pops a string and runs it as a shell command, pushes the output of the command as a string
-qcmd vm = do
-  result <- try (System.Process.readCreateProcess (System.Process.shell cmd) "") :: IO (Either SomeException String)
-  let stack_top = case result of {
-    Left _ -> [QSym "not-ok"];
-    Right s -> [QSym "ok", QStr s]; }
-  return . Just $ vm { stack = stack_top ++ stack' }
-  where ((QStr cmd) : stack') = stack vm
+-- pops a string and runs it as a shell command, pushes the output of the command
+qCmd :: QVM -> IState
+qCmd vm = case stack vm of
+  (QStr cmd : stack') -> do
+    let proc = SysProc.readCreateProcess (SysProc.shell cmd) ""
+    cmdResult <- try $ proc :: IO (Either SomeException String)
+    let stackTop = case cmdResult of
+          Left _ -> [QSym "not-ok"]
+          Right result -> [QSym "ok", QStr result]
+    return . Just $ vm { stack = stackTop ++ stack' }
+  _ ->  raiseTypeError "cmd" [Str] vm
 
 -- exits the interpreter (only if in script mode)
-qexit _ = return Nothing
+qExit :: QVM -> IState
+qExit _ = return Nothing

@@ -29,17 +29,30 @@ qnum = do
 
 --- Tokens ---
 
+qcontrolchars = "'\":\\[]|\n\t "
+
 -- plain token used for function names and variables
 qatom = do
-  value <- many1 $ noneOf (['0'..'9'] ++ "'\":\\[]|\n\t ")
+  value <- many1 $ noneOf (['0'..'9'] ++ qcontrolchars)
   return $ QFunc value
 
 -- token with a ':' in front used for symbols
 qsym = do
   char ':'
-  value <- many1 $ noneOf (['0'..'9'] ++ "'\":\\[]|\n\t ")
+  value <- many1 $ noneOf (['0'..'9'] ++ qcontrolchars)
   return $ QSym value
 
+-- core function keyword
+qcorefunc = choice corefuncs >>= return . QCFunc
+  where corefuncs = map (try . corefuncKeyword)
+          [ "+", "*", "/", "@>", "@<", "<@", ">@", "><", "<>", "<"
+          , "show", "chars", "weld", "type", "def", "parse", "call"
+          , "match", ".", "load", "write", "cmd", "print" , "exit" ]
+        corefuncKeyword :: String -> Parsec String () String
+        corefuncKeyword keyword = do
+          token <- string keyword
+          try . lookAhead $ oneOf qcontrolchars
+          return token
 
 --- Strings ---
 
@@ -85,7 +98,7 @@ qquote = do
 --- Syntatic Structure ---
 
 -- all of the quark item types
-qtoken = try qnum <|> qatom <|> qsym <|> qstr <|> qquote
+qtoken = try qnum <|> qcorefunc <|> qatom <|> qsym <|> qstr <|> qquote
 
 -- whitespace
 qsep = many $ char ' ' <|> char '\n' <|> char '\t'

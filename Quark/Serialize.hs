@@ -15,6 +15,7 @@ replaceChar oldC newC str = concat $ map (\c -> if c == oldC then newC else [c])
 serializeQ :: Int -> QItem -> String
 serializeQ _ (QNum x) = if (ceiling x) == (floor x) then (show . floor) x else show x
 serializeQ _ (QFunc x) = x
+serializeQ _ (QCFunc x) = x
 serializeQ _ (QVar x) = x
 serializeQ _ (QSym x) = ':' : x
 serializeQ _ (QStr x) = "\"" ++ escaped ++ "\""
@@ -25,3 +26,4 @@ serializeQ n (QQuote pattern body) = "[ " ++ patternStr ++ bodyStr ++ " ]"
         quoteSeqToStr = unwords . map (serializeQ n) . getItems . toList
         patternStr = if Seq.null pattern then "" else (quoteSeqToStr pattern) ++ (ellipsis pattern) ++ " | "
         bodyStr = (quoteSeqToStr body) ++ (ellipsis body)
+serializeQ _ (QMagic x) = "~~" ++ show x ++ "~~"
